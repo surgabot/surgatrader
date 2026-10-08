@@ -19,6 +19,8 @@ import com.surgatrader.feature.aura.domain.model.AuraScriptStep
 import com.surgatrader.feature.aura.domain.model.AuraState
 import com.surgatrader.feature.aura.domain.model.AuraTerminalLog
 import com.surgatrader.feature.aura.domain.model.DefaultAuraEntities
+import com.surgatrader.feature.aura.domain.AuraMarketStateHolder
+import com.surgatrader.feature.aura.domain.MarketSnapshot
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
@@ -38,7 +40,8 @@ import kotlin.random.Random
 class AuraQuantumViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val mt5Client: Mt5McpBridgeClient,
-    private val securePrefs: SecurePreferencesManager
+    private val securePrefs: SecurePreferencesManager,
+    private val marketStateHolder: AuraMarketStateHolder
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(AuraState(dataMode = securePrefs.getDataMode()))
@@ -149,6 +152,22 @@ class AuraQuantumViewModel @Inject constructor(
                 wibClock = clock
             )
         }
+        marketStateHolder.updateSnapshot(
+            MarketSnapshot(
+                currentPrice = 4100.234,
+                bidPrice = 4100.234,
+                askPrice = 4100.354,
+                spreadPoints = 120.0,
+                balanceUsc = 250000.00,
+                equityUsc = 250000.00,
+                freeMarginUsc = 250000.00,
+                marginLevel = 0.0,
+                atr14 = atr,
+                latestConsensus = consensus,
+                isLiveConnected = false,
+                accountServer = "SIMULASI DEMO"
+            )
+        )
         addTerminalLog(
             speaker = "MODE-DISPATCHER",
             color = AuraCyan,
@@ -173,6 +192,8 @@ class AuraQuantumViewModel @Inject constructor(
                     candles = initialCandles
                 )
 
+                val calculatedMarginLevel = if (acc.margin > 0) (acc.equity / acc.margin) * 100.0 else 0.0
+
                 _state.update {
                     it.copy(
                         isMt5Connected = true,
@@ -180,6 +201,7 @@ class AuraQuantumViewModel @Inject constructor(
                         mt5BalanceUsc = acc.balance,
                         mt5EquityUsc = acc.equity,
                         mt5FreeMarginUsc = acc.marginFree,
+                        mt5MarginLevel = calculatedMarginLevel,
                         mt5Server = acc.server,
                         mt5AccountType = acc.type,
                         latencyMs = testResult.latencyMs.toDouble(),
@@ -194,6 +216,22 @@ class AuraQuantumViewModel @Inject constructor(
                         wibClock = DateTimeUtils.formatCurrentWibClock()
                     )
                 }
+                marketStateHolder.updateSnapshot(
+                    MarketSnapshot(
+                        currentPrice = 4100.234,
+                        bidPrice = 4100.234,
+                        askPrice = 4100.354,
+                        spreadPoints = 120.0,
+                        balanceUsc = acc.balance,
+                        equityUsc = acc.equity,
+                        freeMarginUsc = acc.marginFree,
+                        marginLevel = calculatedMarginLevel,
+                        atr14 = atr,
+                        latestConsensus = consensus,
+                        isLiveConnected = true,
+                        accountServer = acc.server
+                    )
+                )
                 addTerminalLog(
                     speaker = "MT5-BRIDGE",
                     color = AuraGreenBull,
@@ -282,6 +320,23 @@ class AuraQuantumViewModel @Inject constructor(
                         activeSession = DateTimeUtils.getActiveTradingSession()
                     )
                 }
+
+                marketStateHolder.updateSnapshot(
+                    MarketSnapshot(
+                        currentPrice = newBid,
+                        bidPrice = newBid,
+                        askPrice = newAsk,
+                        spreadPoints = spreadPts,
+                        balanceUsc = _state.value.mt5BalanceUsc,
+                        equityUsc = _state.value.mt5EquityUsc,
+                        freeMarginUsc = _state.value.mt5FreeMarginUsc,
+                        marginLevel = _state.value.mt5MarginLevel,
+                        atr14 = newAtr,
+                        latestConsensus = updatedConsensus,
+                        isLiveConnected = _state.value.isMt5Connected,
+                        accountServer = _state.value.mt5Server
+                    )
+                )
             }
         }
     }

@@ -2,6 +2,10 @@ package com.surgatrader.feature.riskradar.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.surgatrader.core.util.CurrencyFormatter
+import com.surgatrader.feature.aura.domain.AuraMarketStateHolder
+import com.surgatrader.feature.aura.domain.MarketSnapshot
+import com.surgatrader.feature.aura.domain.model.CouncilBias
 import com.surgatrader.feature.riskradar.data.DefaultSymbols
 import com.surgatrader.feature.riskradar.data.SymbolRepository
 import com.surgatrader.feature.riskradar.domain.calculator.LotSizeCalculator
@@ -27,18 +31,22 @@ data class RiskRadarUiState(
     val lotResult: LotCalculationResult = LotSizeCalculator.calculate(LotCalculationParams(), DefaultSymbols.XAUUSD_EXNESS_CENT),
     val radarInput: RiskRadarInput = RiskRadarInput(),
     val assessment: RiskAssessment = RiskScoreCalculator.assessRisk(RiskRadarInput()),
-    val activeTab: Int = 0 // 0 = Kalkulator Lot, 1 = Radar Risiko & Korelasi
+    val activeTab: Int = 0, // 0 = Kalkulator Lot Cent, 1 = Radar Risiko 5D/6D
+    val marketSnapshot: MarketSnapshot = MarketSnapshot(),
+    val statusMessage: String? = null
 )
 
 @HiltViewModel
 class RiskRadarViewModel @Inject constructor(
-    private val symbolRepository: SymbolRepository
+    private val symbolRepository: SymbolRepository,
+    private val marketStateHolder: AuraMarketStateHolder
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RiskRadarUiState())
     val uiState: StateFlow<RiskRadarUiState> = _uiState.asStateFlow()
 
     init {
+        // Observasi spesifikasi simbol
         viewModelScope.launch {
             symbolRepository.getDefaultSymbol().collect { spec ->
                 val currentLotParams = _uiState.value.lotParams
@@ -49,10 +57,73 @@ class RiskRadarViewModel @Inject constructor(
                 )
             }
         }
+
+        // Observasi data pasar terkini dari modul Aura
+        viewModelScope.launch {
+            marketStateHolder.snapshot.collect { snapshot ->
+                _uiState.value = _uiState.value.copy(marketSnapshot = snapshot)
+            }
+        }
     }
 
     fun selectTab(tabIndex: Int) {
         _uiState.value = _uiState.value.copy(activeTab = tabIndex)
+    }
+
+    fun dismissStatusMessage() {
+        _uiState.value = _uiState.value.copy(statusMessage = null)
+    }
+
+    /**
+     * Sinkronkan otomatis saldo, harga entry, dan volatilitas dari tick pasar live/demo saat ini
+     */
+    fun syncWithMarket() {
+        val snapshot = marketStateHolder.snapshot.value
+        val updatedParams = _uiState.value.lotParams.copy(
+            balance = if (snapshot.balanceUsc > 0) snapshot.balanceUsc else _uiState.value.lotParams.balance,
+            entryPrice = if (snapshot.bidPrice > 0) snapshot.bidPrice else _uiState.value.lotParams.entryPrice
+        )
+        val updatedRadar = _uiState.value.radarInput.copy(
+            marginLevelPercent = if (snapshot.marginLevel > 0) snapshot.marginLevel else _uiState.value.radarInput.marginLevelPercent,
+            currentAtr = if (snapshot.atr14 > 0) snapshot.atr14 * 20.0 else _uiState.value.radarInput.currentAtr
+        )
+
+        recalculateAll(updatedParams, updatedRadar)
+        _uiState.value = _uiState.value.copy(
+            statusMessage = "✅ Tersinkronisasi dengan Pasar: Saldo ${CurrencyFormatter.formatUsc(updatedParams.balance)} • Harga Entry ${updatedParams.entryPrice}"
+        )
+    }
+
+    /**
+     * Terapkan rekomendasi resmi dari entitas dewan Aegis (Sintesis Konsensus Dewan Kuantum)
+     */
+    fun importAegisRecommendation() {
+        val consensus = marketStateHolder.snapshot.value.latestConsensus
+        if (consensus == null) {
+            _uiState.value = _uiState.value.copy(
+                statusMessage = "⚠️ Belum ada rekomendasi sinyal aktif dari Dewan Kuantum."
+            )
+            return
+        }
+
+        val dir = if (consensus.consensusBias == CouncilBias.BEARISH) OrderDirection.SELL else OrderDirection.BUY
+        val entry = if (consensus.entryPriceMin > 0) consensus.entryPriceMin else _uiState.value.marketSnapshot.bidPrice
+        val sl = consensus.stopLossPrice
+        val tp = if (consensus.takeProfit1Price > 0) consensus.takeProfit1Price else entry
+
+        val updatedParams = _uiState.value.lotParams.copy(
+            direction = dir,
+            entryPrice = entry,
+            slMode = SlInputMode.PRICE,
+            slInput = sl,
+            tpMode = TpInputMode.PRICE,
+            tpInput = tp
+        )
+
+        recalculateLot(updatedParams)
+        _uiState.value = _uiState.value.copy(
+            statusMessage = "⚡ Rekomendasi Aegis Diterapkan: ${consensus.setupType.label} • Skor ${consensus.confluenceScore}/100 • Lot Rekomendasi ${consensus.recommendedLotCent}"
+        )
     }
 
     // --- Pembaruan Parameter Kalkulator Lot ---
@@ -64,7 +135,7 @@ class RiskRadarViewModel @Inject constructor(
 
     fun updateRiskPercent(newRisk: Double) {
         val updated = _uiState.value.lotParams.copy(riskPercent = newRisk)
-        // Sinkronkan juga ke skor risiko
+        // Sinkronkan juga ke input radar risiko
         val updatedRadar = _uiState.value.radarInput.copy(riskPerTradePercent = newRisk)
         recalculateAll(updated, updatedRadar)
     }

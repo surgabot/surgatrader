@@ -131,4 +131,28 @@ class LotSizeCalculatorTest {
         assertThat(result.requiredMarginUsd).isWithin(0.1).of(20.63)
         assertThat(result.requiredMarginUsc).isWithin(10.0).of(2062.75)
     }
+
+    @Test
+    fun `stop out buffer calculated accurately for Exness Cent and warns when buffer is narrow`() {
+        // Saldo: 10,000 USC ($100 USD)
+        // Risiko tinggi 10% -> 1,000 USC
+        // SL pendek 100 pts -> raw lot = 1,000 / (100 * 10) = 1.00 lot
+        // Point value 1.00 lot = 10 USC / pt
+        // Stop out buffer: 10,000 / 10 = 1,000 points
+        val params = LotCalculationParams(
+            balance = 10000.0,
+            riskPercent = 10.0,
+            direction = OrderDirection.BUY,
+            entryPrice = 4125.500,
+            slMode = SlInputMode.POINTS,
+            slInput = 100.0,
+            includeSpread = false
+        )
+
+        val result = LotSizeCalculator.calculate(params, exnessCentSpec)
+
+        assertThat(result.recommendedLot).isEqualTo(1.00)
+        assertThat(result.stopOutBufferPoints).isEqualTo(1000.0)
+        assertThat(result.warningMessage).contains("Stop Out")
+    }
 }

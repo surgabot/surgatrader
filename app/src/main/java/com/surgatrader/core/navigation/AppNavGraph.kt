@@ -38,13 +38,15 @@ fun AppNavGraph(
 
         composable(Screen.RiskRadar.route) {
             RiskRadarScreen(
-                onNavigateToSymbolSpec = { navController.navigate(Screen.SymbolSpec.route) }
+                onNavigateToSymbolSpec = { navController.navigate(Screen.SymbolSpec.route) },
+                initialTab = 1
             )
         }
 
         composable(Screen.LotCalculator.route) {
             RiskRadarScreen(
-                onNavigateToSymbolSpec = { navController.navigate(Screen.SymbolSpec.route) }
+                onNavigateToSymbolSpec = { navController.navigate(Screen.SymbolSpec.route) },
+                initialTab = 0
             )
         }
 

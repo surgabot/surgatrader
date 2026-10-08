@@ -28,7 +28,6 @@ object LotSizeCalculator {
             SlInputMode.MONEY -> params.slInput
             else -> params.balance * (params.riskPercent / 100.0)
         }
-        val riskAmountUsd = riskAmountUsc / 100.0
 
         // 2. Hitung Jarak Stop Loss dalam Points
         val baseSlPoints = when (params.slMode) {
@@ -99,7 +98,17 @@ object LotSizeCalculator {
         }
         val marginUsc = marginUsd * 100.0
 
-        // 10. Deteksi Peringatan Risiko
+        // 10. Hitung Ketahanan Jarak ke Stop Out (Points)
+        // Rumus Stop Out Exness Cent (0% stop out level): Saldo / (Lot * Nilai Point per Lot)
+        val stopOutBufferPoints = if (recommendedLot > 0 && pointVal1Lot > 0) {
+            BigDecimal(params.balance / (recommendedLot * pointVal1Lot))
+                .setScale(1, RoundingMode.HALF_UP)
+                .toDouble()
+        } else {
+            0.0
+        }
+
+        // 11. Deteksi Peringatan Risiko
         val warningMessage = when {
             rawLot < spec.minLot -> {
                 "Perhatian: Lot kalkulasi (${round(rawLot, 4)}) lebih kecil dari batas minimum broker (${spec.minLot}). Risiko aktual akan naik menjadi ${CurrencyFormatter.formatUsc(actualRiskUsc)}."
@@ -109,6 +118,9 @@ object LotSizeCalculator {
             }
             marginUsc > params.balance * 0.75 -> {
                 "⚠️ PERINGATAN MARGIN: Kebutuhan margin (${CurrencyFormatter.formatUsc(marginUsc)}) memakan > 75% saldo Anda. Rentan terkena Stop Out!"
+            }
+            stopOutBufferPoints in 1.0..1200.0 -> {
+                "⚠️ PERINGATAN KETAHANAN: Jarak ke Stop Out hanya ${stopOutBufferPoints.toInt()} points. Rentan terlikuidasi saat fluktuasi tajam!"
             }
             else -> null
         }
@@ -127,6 +139,7 @@ object LotSizeCalculator {
             requiredMarginUsc = marginUsc,
             requiredMarginUsd = marginUsd,
             pointValuePerLot = pointVal1Lot,
+            stopOutBufferPoints = stopOutBufferPoints,
             warningMessage = warningMessage
         )
     }

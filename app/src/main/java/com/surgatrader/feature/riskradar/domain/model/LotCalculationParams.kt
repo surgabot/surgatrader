@@ -45,5 +45,6 @@ data class LotCalculationResult(
     val requiredMarginUsc: Double,       // Estimasi margin yang dibutuhkan (USC)
     val requiredMarginUsd: Double,       // Estimasi margin yang dibutuhkan (USD)
     val pointValuePerLot: Double,        // Nilai per point untuk 1 lot
+    val stopOutBufferPoints: Double = 0.0, // Ketahanan jarak ke Stop Out (points)
     val warningMessage: String? = null   // Peringatan jika lot menyentuh min/max atau margin berlebih
 )
