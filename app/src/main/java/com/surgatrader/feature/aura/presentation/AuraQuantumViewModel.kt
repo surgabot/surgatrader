@@ -8,14 +8,19 @@ import com.surgatrader.core.security.SecurePreferencesManager
 import com.surgatrader.core.theme.AuraCyan
 import com.surgatrader.core.theme.AuraGoldPrimary
 import com.surgatrader.core.theme.AuraGreenBull
+import com.surgatrader.core.util.DateTimeUtils
 import com.surgatrader.feature.advanced.Mt5McpBridgeClient
 import com.surgatrader.feature.aura.audio.AndroidIndonesianVoiceEngine
 import com.surgatrader.feature.aura.audio.CyberSynthPlayer
 import com.surgatrader.feature.aura.domain.model.AuraEntity
+import com.surgatrader.feature.aura.domain.model.AuraMarketMath
+import com.surgatrader.feature.aura.domain.model.AuraScriptStep
 import com.surgatrader.feature.aura.domain.model.AuraState
 import com.surgatrader.feature.aura.domain.model.AuraTerminalLog
+import com.surgatrader.feature.aura.domain.model.CouncilBias
 import com.surgatrader.feature.aura.domain.model.DefaultAuraEntities
 import com.surgatrader.feature.aura.domain.model.DefaultAuraScript
+import com.surgatrader.feature.aura.domain.model.MarketCandle
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
@@ -103,16 +108,38 @@ class AuraQuantumViewModel @Inject constructor(
     }
 
     private fun initDemoMode() {
+        val initialCandles = AuraMarketMath.generateRealisticM5Candles(4100.234, 16)
+        val atr = AuraMarketMath.calculateAtr(initialCandles)
+        val rotSpeed = AuraMarketMath.computeRotationMultiplier(atr)
+        val bias = AuraMarketMath.determineConsensusBias(initialCandles)
+        val session = DateTimeUtils.getActiveTradingSession()
+        val clock = DateTimeUtils.formatCurrentWibClock()
+
         _state.update {
             it.copy(
                 dataMode = DataMode.DEMO,
                 isMt5Connected = false,
                 mt5Server = "SIMULASI DEMO",
                 mt5AccountType = "Standar Cent (Simulasi)",
-                mt5BalanceUsc = 2500.00,
-                mt5EquityUsc = 2500.00,
-                mt5FreeMarginUsc = 2500.00,
-                latencyMs = 0.0
+                mt5BalanceUsc = 250000.00, // $2,500.00 USD
+                mt5EquityUsc = 250000.00,
+                mt5FreeMarginUsc = 250000.00,
+                mt5MarginLevel = 0.0,
+                latencyMs = 0.0,
+                goldPriceUsc = 4100.234,
+                bidPriceUsc = 4100.234,
+                askPriceUsc = 4100.354,
+                goldPriceUsd = 2658.45,
+                spreadPoints = 120.0,
+                spreadPips = 0.12,
+                dailyChangePercent = 0.42,
+                floatingProfitUsc = 0.0,
+                m5Candles = initialCandles,
+                atr14 = atr,
+                rotationSpeedMultiplier = rotSpeed,
+                consensusBias = bias,
+                activeSession = session,
+                wibClock = clock
             )
         }
         addTerminalLog(
@@ -128,6 +155,11 @@ class AuraQuantumViewModel @Inject constructor(
             val testResult = mt5Client.testConnection(url, token)
             if (testResult.isConnected && testResult.accountData != null) {
                 val acc = testResult.accountData
+                val initialCandles = AuraMarketMath.generateRealisticM5Candles(4100.234, 16)
+                val atr = AuraMarketMath.calculateAtr(initialCandles)
+                val rotSpeed = AuraMarketMath.computeRotationMultiplier(atr)
+                val bias = AuraMarketMath.determineConsensusBias(initialCandles)
+
                 _state.update {
                     it.copy(
                         isMt5Connected = true,
@@ -137,7 +169,13 @@ class AuraQuantumViewModel @Inject constructor(
                         mt5FreeMarginUsc = acc.marginFree,
                         mt5Server = acc.server,
                         mt5AccountType = acc.type,
-                        latencyMs = testResult.latencyMs.toDouble()
+                        latencyMs = testResult.latencyMs.toDouble(),
+                        m5Candles = initialCandles,
+                        atr14 = atr,
+                        rotationSpeedMultiplier = rotSpeed,
+                        consensusBias = bias,
+                        activeSession = DateTimeUtils.getActiveTradingSession(),
+                        wibClock = DateTimeUtils.formatCurrentWibClock()
                     )
                 }
                 addTerminalLog(
@@ -157,7 +195,7 @@ class AuraQuantumViewModel @Inject constructor(
                     color = AuraCyan,
                     message = "Gagal terhubung ke Bridge MT5. Kembali ke data simulasi offline."
                 )
-                startMarketSimulation()
+                initDemoMode()
             }
         }
     }
@@ -166,16 +204,49 @@ class AuraQuantumViewModel @Inject constructor(
         marketTickJob?.cancel()
         marketTickJob = viewModelScope.launch {
             while (true) {
-                delay(2000)
-                val delta = (Random.nextDouble() - 0.48) * 0.35
-                val newPrice = _state.value.goldPriceUsd + delta
-                val newCentPrice = _state.value.goldPriceUsc + (delta * 1.54)
+                delay(1200)
+
+                val delta = (Random.nextDouble() - 0.48) * 0.26
+                val newBid = (_state.value.bidPriceUsc + delta).coerceIn(3800.0, 4800.0)
+                val spreadPts = _state.value.spreadPoints
+                val newAsk = newBid + (spreadPts * 0.001)
+                val isTickUp = delta >= 0
+
+                val currentCandles = _state.value.m5Candles.toMutableList()
+                if (currentCandles.isNotEmpty()) {
+                    val lastIdx = currentCandles.lastIndex
+                    val last = currentCandles[lastIdx]
+                    val updated = last.copy(
+                        close = newBid,
+                        high = maxOf(last.high, newBid),
+                        low = minOf(last.low, newBid),
+                        volume = last.volume + Random.nextLong(1L, 4L)
+                    )
+                    currentCandles[lastIdx] = updated
+                }
+
+                val newAtr = AuraMarketMath.calculateAtr(currentCandles)
+                val newRot = AuraMarketMath.computeRotationMultiplier(newAtr)
+                val newBias = AuraMarketMath.determineConsensusBias(currentCandles)
+                val baseOpen = currentCandles.firstOrNull()?.open ?: 4085.0
+                val changePct = ((newBid - baseOpen) / baseOpen) * 100.0
+                val simFloating = (newBid - 4098.50) * 10.0 // Simulasi floating P/L posisi terbuka
 
                 _state.update {
                     it.copy(
-                        goldPriceUsd = newPrice,
-                        goldPriceUsc = newCentPrice,
-                        isTickPositive = delta >= 0
+                        goldPriceUsc = newBid,
+                        bidPriceUsc = newBid,
+                        askPriceUsc = newAsk,
+                        goldPriceUsd = newBid / 1.542,
+                        isTickPositive = isTickUp,
+                        m5Candles = currentCandles,
+                        atr14 = newAtr,
+                        rotationSpeedMultiplier = newRot,
+                        consensusBias = newBias,
+                        dailyChangePercent = changePct,
+                        floatingProfitUsc = simFloating,
+                        wibClock = DateTimeUtils.formatCurrentWibClock(),
+                        activeSession = DateTimeUtils.getActiveTradingSession()
                     )
                 }
             }

@@ -15,14 +15,27 @@ data class AuraState(
     val isStartModalVisible: Boolean = true,
     val dataMode: DataMode = DataMode.DEMO,
     
-    // Live / Demo Ticker Data (USC / USD)
+    // Live / Demo Ticker Data (USC 3 desimal & USD)
     val goldPriceUsd: Double = 2658.45,
     val goldPriceUsc: Double = 4100.234,
+    val bidPriceUsc: Double = 4100.234,
+    val askPriceUsc: Double = 4100.354,
+    val spreadPoints: Double = 120.0,
+    val spreadPips: Double = 0.12,
+    val dailyChangePercent: Double = 0.42,
+    val floatingProfitUsc: Double = 0.0,
     val isTickPositive: Boolean = true,
-    val spreadPips: Double = 0.1,
     val latencyMs: Double = 0.0,
     val dailyAlphaUsd: Double = 0.0,
     val sharpeRatio: Double = 0.0,
+    val activeSession: String = "SESI ASIA",
+    val wibClock: String = "00:00:00 WIB",
+    
+    // Hologram Data: 16 Real M5 Candles & ATR Volatility
+    val m5Candles: List<MarketCandle> = emptyList(),
+    val atr14: Double = 1.450,
+    val rotationSpeedMultiplier: Float = 1.0f,
+    val consensusBias: CouncilBias = CouncilBias.BULLISH,
     
     // MT5 Cent Bridge State (No hardcoded credentials)
     val isMt5Connected: Boolean = false,
@@ -32,6 +45,7 @@ data class AuraState(
     val mt5BalanceUsc: Double = 0.0,
     val mt5EquityUsc: Double = 0.0,
     val mt5FreeMarginUsc: Double = 0.0,
+    val mt5MarginLevel: Double = 0.0,
     val lastOrderExecutionMessage: String? = null,
     
     // Audio waveform simulation values

@@ -32,7 +32,11 @@ import com.surgatrader.core.theme.AuraGoldPrimary
 import com.surgatrader.core.theme.AuraGreenBull
 import com.surgatrader.core.theme.AuraRedBear
 import com.surgatrader.feature.aura.domain.model.AuraEntity
+import com.surgatrader.feature.aura.domain.model.AuraState
+import com.surgatrader.feature.aura.domain.model.CouncilBias
 import com.surgatrader.feature.aura.domain.model.DefaultAuraEntities
+import com.surgatrader.feature.aura.domain.model.MarketCandle
+import java.util.Locale
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.hypot
@@ -73,9 +77,8 @@ private class DataPacket(
 
 @Composable
 fun AuraQuantumCanvas(
+    state: AuraState,
     modifier: Modifier = Modifier,
-    activeSpeaker: AuraEntity?,
-    isSpeaking: Boolean,
     onEntityTapped: (AuraEntity) -> Unit
 ) {
     var globalTime by remember { mutableFloatStateOf(0f) }
@@ -83,7 +86,11 @@ fun AuraQuantumCanvas(
     val ripples = remember { mutableStateListOf<Ripple>() }
     val packets = remember { mutableStateListOf<DataPacket>() }
 
-    // Continuous 60fps game render loop
+    val activeSpeaker = state.currentSpeaker
+    val isSpeaking = state.isSpeaking
+    val rotationMultiplier = state.rotationSpeedMultiplier
+
+    // Continuous 60fps game render loop with ATR-adjusted velocity
     LaunchedEffect(Unit) {
         var lastNano = 0L
         while (true) {
@@ -94,14 +101,6 @@ fun AuraQuantumCanvas(
                 }
                 lastNano = frameNano
             }
-        }
-    }
-
-    // Trigger ripples & packets when speaking
-    LaunchedEffect(globalTime, isSpeaking, activeSpeaker) {
-        if (isSpeaking && activeSpeaker != null && Random.nextFloat() < 0.12f) {
-            // New packet from speaker to center
-            // (coords will be resolved during draw)
         }
     }
 
@@ -217,14 +216,14 @@ fun AuraQuantumCanvas(
             )
         }
 
-        // Entity Positions
+        // Entity Positions (Pentagon Formation)
         val entityPositions = DefaultAuraEntities.map { entity ->
             val ex = centerX + cos(entity.angle) * orbitRadius
             val ey = centerY + sin(entity.angle) * orbitRadius
             entity to Offset(ex, ey)
         }
 
-        // 4. Draw Synapse Web (Background interconnect lines)
+        // 4. Draw Synapse Web (Background interconnect lines between entities)
         for (i in entityPositions.indices) {
             for (j in (i + 1) until entityPositions.size) {
                 drawLine(
@@ -234,7 +233,7 @@ fun AuraQuantumCanvas(
                     strokeWidth = 1f
                 )
             }
-            // Lines to core
+            // Lines from entities to core
             drawLine(
                 color = Color(0x22FFFFFF),
                 start = entityPositions[i].second,
@@ -244,52 +243,50 @@ fun AuraQuantumCanvas(
         }
 
         // 5. Active Speaker High-Energy Synapse Beam & Data Packets
-        if (activeSpeaker != null) {
-            val speakerPos = entityPositions.find { it.first.id == activeSpeaker.id }?.second
-            if (speakerPos != null) {
-                // High-glow beam
-                drawLine(
-                    color = activeSpeaker.color.copy(alpha = 0.85f),
-                    start = speakerPos,
-                    end = Offset(centerX, centerY),
-                    strokeWidth = 4f
-                )
-                drawLine(
-                    color = Color.White,
-                    start = speakerPos,
-                    end = Offset(centerX, centerY),
-                    strokeWidth = 1.5f
-                )
+        val speakerPos = entityPositions.find { it.first.id == activeSpeaker.id }?.second
+        if (speakerPos != null) {
+            // High-glow beam to core
+            drawLine(
+                color = activeSpeaker.color.copy(alpha = 0.85f),
+                start = speakerPos,
+                end = Offset(centerX, centerY),
+                strokeWidth = 4f
+            )
+            drawLine(
+                color = Color.White,
+                start = speakerPos,
+                end = Offset(centerX, centerY),
+                strokeWidth = 1.5f
+            )
 
-                // Spawn packets towards center when speaking
-                if (isSpeaking && Random.nextFloat() < 0.15f) {
-                    packets.add(
-                        DataPacket(
-                            startX = speakerPos.x,
-                            startY = speakerPos.y,
-                            targetX = centerX,
-                            targetY = centerY,
-                            progress = 0f,
-                            speed = 0.035f + Random.nextFloat() * 0.02f,
-                            color = activeSpeaker.color,
-                            size = Random.nextFloat() * 4f + 3f
-                        )
+            // Spawn data packets towards core during active speech
+            if (isSpeaking && Random.nextFloat() < 0.15f) {
+                packets.add(
+                    DataPacket(
+                        startX = speakerPos.x,
+                        startY = speakerPos.y,
+                        targetX = centerX,
+                        targetY = centerY,
+                        progress = 0f,
+                        speed = (0.035f + Random.nextFloat() * 0.02f) * rotationMultiplier,
+                        color = activeSpeaker.color,
+                        size = Random.nextFloat() * 4f + 3f
                     )
-                }
+                )
+            }
 
-                if (isSpeaking && Random.nextFloat() < 0.06f) {
-                    ripples.add(
-                        Ripple(
-                            x = speakerPos.x,
-                            y = speakerPos.y,
-                            radius = 12f,
-                            maxRadius = 140f,
-                            color = activeSpeaker.color,
-                            alpha = 0.85f,
-                            speed = 2.8f
-                        )
+            if (isSpeaking && Random.nextFloat() < 0.06f) {
+                ripples.add(
+                    Ripple(
+                        x = speakerPos.x,
+                        y = speakerPos.y,
+                        radius = 12f,
+                        maxRadius = 140f,
+                        color = activeSpeaker.color,
+                        alpha = 0.85f,
+                        speed = 2.8f
                     )
-                }
+                )
             }
         }
 
@@ -335,16 +332,20 @@ fun AuraQuantumCanvas(
             )
         }
 
-        // 8. Draw Central Holographic Gold Core (XAU/USD CORE)
+        // 8. Draw Central Holographic Gold Core with Real M5 Candles & ATR-Driven Rotation
         drawGoldHoloCore(
             centerX = centerX,
             centerY = centerY,
-            time = globalTime
+            time = globalTime,
+            candles = state.m5Candles,
+            rotationMultiplier = rotationMultiplier,
+            consensusBias = state.consensusBias,
+            atr14 = state.atr14
         )
 
         // 9. Draw Council Entity Avatars
         for ((entity, pos) in entityPositions) {
-            val isCurrentSpeaker = activeSpeaker?.id == entity.id && isSpeaking
+            val isCurrentSpeaker = activeSpeaker.id == entity.id && isSpeaking
             drawEntityAvatar(
                 entity = entity,
                 pos = pos,
@@ -358,35 +359,51 @@ fun AuraQuantumCanvas(
 private fun DrawScope.drawGoldHoloCore(
     centerX: Float,
     centerY: Float,
-    time: Float
+    time: Float,
+    candles: List<MarketCandle>,
+    rotationMultiplier: Float,
+    consensusBias: CouncilBias,
+    atr14: Double
 ) {
+    // Determine dynamic core color based on Council Consensus Bias
+    val coreColor = when (consensusBias) {
+        CouncilBias.BULLISH -> AuraGreenBull
+        CouncilBias.BEARISH -> AuraRedBear
+        CouncilBias.NEUTRAL -> AuraGoldPrimary
+    }
+    val coreSubColor = when (consensusBias) {
+        CouncilBias.BULLISH -> Color(0xFF00B050)
+        CouncilBias.BEARISH -> Color(0xFFB00020)
+        CouncilBias.NEUTRAL -> Color(0xFFB8860B)
+    }
+
     // Outer radial glow
     drawCircle(
         brush = Brush.radialGradient(
             colors = listOf(
-                Color(0x45FFD700),
-                Color(0x18FF8C00),
+                coreColor.copy(alpha = 0.35f),
+                coreSubColor.copy(alpha = 0.15f),
                 Color.Transparent
             ),
             center = Offset(centerX, centerY),
-            radius = 125f
+            radius = 130f
         ),
-        radius = 125f,
+        radius = 130f,
         center = Offset(centerX, centerY)
     )
 
-    // 4 Elliptical Orbit Rings with Rotating Satellites
+    // 4 Elliptical Orbit Rings with Rotating Satellites (Speed regulated by ATR)
     val orbitColors = listOf(
-        Color(0xCCFFD700),
+        coreColor.copy(alpha = 0.85f),
         Color(0xAA00F2FE),
         Color(0x99FF8C00),
-        Color(0x8800FF88)
+        coreSubColor.copy(alpha = 0.75f)
     )
     val rotSpeeds = listOf(0.016f, -0.022f, 0.026f, -0.012f)
 
     for (r in 0 until 4) {
         val ringRadius = 50f + r * 16f
-        val rotationAngle = (time * rotSpeeds[r] + (r * PI.toFloat() / 4f)) * (180f / PI.toFloat())
+        val rotationAngle = (time * rotSpeeds[r] * rotationMultiplier + (r * PI.toFloat() / 4f)) * (180f / PI.toFloat())
 
         rotate(degrees = rotationAngle, pivot = Offset(centerX, centerY)) {
             drawOval(
@@ -397,7 +414,7 @@ private fun DrawScope.drawGoldHoloCore(
             )
 
             // Orbiting satellite dot
-            val satAngle = time * (0.04f + r * 0.012f)
+            val satAngle = time * (0.04f + r * 0.012f) * rotationMultiplier
             val satX = centerX + cos(satAngle) * ringRadius
             val satY = centerY + sin(satAngle) * (ringRadius * 0.42f)
             drawCircle(
@@ -408,41 +425,60 @@ private fun DrawScope.drawGoldHoloCore(
         }
     }
 
-    // 16 Revolving 3D Candlesticks (Green Bull & Red Bear)
-    val numCandles = 16
+    // 16 Real M5 Candlesticks revolving in 3D perspective around the core
+    val numCandles = if (candles.isNotEmpty()) candles.size else 16
     for (c in 0 until numCandles) {
-        val cAngle = (c * (2 * PI.toFloat() / numCandles)) + time * 0.012f
+        val candle = candles.getOrNull(c)
+        val cAngle = (c * (2 * PI.toFloat() / numCandles)) + time * 0.012f * rotationMultiplier
         val dist = 95f + sin(time * 0.05f + c) * 6f
         val cxCandle = centerX + cos(cAngle) * dist
-        val cyCandle = centerY + sin(cAngle) * (dist * 0.5f)
+        val cyCandle = centerY + sin(cAngle) * (dist * 0.48f)
 
-        val isGreen = c % 2 == 0
-        val candleColor = if (isGreen) AuraGreenBull.copy(alpha = 0.85f) else AuraRedBear.copy(alpha = 0.85f)
+        // 3D Depth effect: front candles brighter and larger
+        val zDepth = sin(cAngle)
+        val depthAlpha = (0.55f + (zDepth + 1f) * 0.22f).coerceIn(0.3f, 1.0f)
+        val depthScale = (0.85f + (zDepth + 1f) * 0.15f).coerceIn(0.7f, 1.3f)
+
+        val isBullish = candle?.isBullish ?: (c % 2 == 0)
+        val candleColor = (if (isBullish) AuraGreenBull else AuraRedBear).copy(alpha = depthAlpha)
+
+        // Mathematical scaling based on real candle OHLC values
+        val totalRange = candle?.totalRange ?: 1.0
+        val bodySpan = candle?.bodyHeight ?: 0.5
+        val upperWickSpan = candle?.upperWick ?: 0.25
+        val lowerWickSpan = candle?.lowerWick ?: 0.25
+
+        val totalPix = 24f * depthScale
+        val bodyPix = (bodySpan / totalRange).toFloat().coerceIn(0.15f, 0.9f) * totalPix
+        val upperWickPix = (upperWickSpan / totalRange).toFloat().coerceIn(0.05f, 0.5f) * totalPix
+        val lowerWickPix = (lowerWickSpan / totalRange).toFloat().coerceIn(0.05f, 0.5f) * totalPix
 
         // Wick
         drawLine(
             color = candleColor,
-            start = Offset(cxCandle, cyCandle - 9f),
-            end = Offset(cxCandle, cyCandle + 9f),
-            strokeWidth = 1f
+            start = Offset(cxCandle, cyCandle - (bodyPix / 2f) - upperWickPix),
+            end = Offset(cxCandle, cyCandle + (bodyPix / 2f) + lowerWickPix),
+            strokeWidth = 1.2f * depthScale
         )
+
         // Body
+        val bodyWidth = 5.5f * depthScale
         drawRect(
             color = candleColor,
-            topLeft = Offset(cxCandle - 2.5f, cyCandle - 5f),
-            size = Size(5f, 10f)
+            topLeft = Offset(cxCandle - (bodyWidth / 2f), cyCandle - (bodyPix / 2f)),
+            size = Size(bodyWidth, maxOf(2f, bodyPix))
         )
     }
 
     // Inner Pulsing Core
-    val corePulse = sin(time * 0.05f) * 4f
+    val corePulse = sin(time * 0.05f * rotationMultiplier) * 4f
     val coreRadius = 28f + corePulse
     drawCircle(
         brush = Brush.radialGradient(
             colors = listOf(
                 Color.White,
-                AuraGoldPrimary,
-                Color(0xFFB8860B),
+                coreColor,
+                coreSubColor,
                 Color.Transparent
             ),
             center = Offset(centerX, centerY),
@@ -456,7 +492,7 @@ private fun DrawScope.drawGoldHoloCore(
     val hexPath = Path()
     val hexRadius = 18f + corePulse * 0.4f
     for (h in 0 until 6) {
-        val hexAngle = (h * PI.toFloat() / 3f) + time * 0.02f
+        val hexAngle = (h * PI.toFloat() / 3f) + time * 0.02f * rotationMultiplier
         val hx = centerX + cos(hexAngle) * hexRadius
         val hy = centerY + sin(hexAngle) * hexRadius
         if (h == 0) hexPath.moveTo(hx, hy) else hexPath.lineTo(hx, hy)
@@ -468,24 +504,25 @@ private fun DrawScope.drawGoldHoloCore(
         style = Stroke(width = 1.4f)
     )
 
-    // Core Title Text
+    // Core Title Text & Real Quant Status
     drawIntoCanvas { canvas ->
         val textPaint = Paint().apply {
             color = android.graphics.Color.WHITE
-            textSize = 24f
+            textSize = 22f
             textAlign = Paint.Align.CENTER
             isFakeBoldText = true
             isAntiAlias = true
         }
-        canvas.nativeCanvas.drawText("XAU/USD CORE", centerX, centerY + 48f, textPaint)
+        canvas.nativeCanvas.drawText("XAU/USD CORE", centerX, centerY + 46f, textPaint)
 
         val subPaint = Paint().apply {
-            color = AuraGoldPrimary.toArgb()
-            textSize = 17f
+            color = coreColor.toArgb()
+            textSize = 15f
             textAlign = Paint.Align.CENTER
             isAntiAlias = true
         }
-        canvas.nativeCanvas.drawText("HIGH-FREQUENCY LIQUIDITY", centerX, centerY + 68f, subPaint)
+        val biasText = "BIAS: ${consensusBias.label} • ATR(14): ${String.format(Locale.US, "%.3f", atr14)}"
+        canvas.nativeCanvas.drawText(biasText, centerX, centerY + 65f, subPaint)
     }
 }
 
@@ -580,7 +617,7 @@ private fun DrawScope.drawEntityAvatar(
 
         val rolePaint = Paint().apply {
             color = entity.color.toArgb()
-            textSize = 16f
+            textSize = 15f
             textAlign = Paint.Align.CENTER
             isAntiAlias = true
         }

@@ -43,7 +43,8 @@ import com.surgatrader.feature.connection.ConnectionScreen
 
 @Composable
 fun AuraQuantumScreen(
-    viewModel: AuraQuantumViewModel = hiltViewModel()
+    viewModel: AuraQuantumViewModel = hiltViewModel(),
+    onNavigateToLotCalculator: () -> Unit = {}
 ) {
     val state by viewModel.state.collectAsState()
     var isConnectionScreenOpen by remember { mutableStateOf(false) }
@@ -63,9 +64,8 @@ fun AuraQuantumScreen(
         ) {
             // LAYER 1: Full-screen Holographic 2D Canvas
             AuraQuantumCanvas(
+                state = state,
                 modifier = Modifier.fillMaxSize(),
-                activeSpeaker = state.currentSpeaker,
-                isSpeaking = state.isSpeaking,
                 onEntityTapped = { entity ->
                     viewModel.selectEntity(entity)
                 }
@@ -129,6 +129,7 @@ fun AuraQuantumScreen(
                                 onSpeedSelected = { viewModel.setSpeed(it) },
                                 onVolumeChanged = { viewModel.setVolume(it) },
                                 onExecuteQuantumOrder = { viewModel.executeQuantumOrder() },
+                                onNavigateToLotCalculator = onNavigateToLotCalculator,
                                 onOpenConnectionSettings = { isConnectionScreenOpen = true },
                                 modifier = Modifier.widthIn(max = 340.dp)
                             )
@@ -162,6 +163,7 @@ fun AuraQuantumScreen(
                                 onSpeedSelected = { viewModel.setSpeed(it) },
                                 onVolumeChanged = { viewModel.setVolume(it) },
                                 onExecuteQuantumOrder = { viewModel.executeQuantumOrder() },
+                                onNavigateToLotCalculator = onNavigateToLotCalculator,
                                 onOpenConnectionSettings = { isConnectionScreenOpen = true },
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -201,8 +203,12 @@ fun AuraQuantumScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     AuraStartModal(
+                        state = state,
                         onCommence = {
                             viewModel.dismissStartModal()
+                        },
+                        onOpenConnection = {
+                            isConnectionScreenOpen = true
                         }
                     )
                 }

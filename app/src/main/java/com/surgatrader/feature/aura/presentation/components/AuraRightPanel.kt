@@ -45,6 +45,7 @@ fun AuraRightPanel(
     onSpeedSelected: (Float) -> Unit,
     onVolumeChanged: (Float) -> Unit,
     onExecuteQuantumOrder: () -> Unit,
+    onNavigateToLotCalculator: () -> Unit = {},
     onOpenConnectionSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -279,6 +280,90 @@ fun AuraRightPanel(
                         ),
                         modifier = Modifier.height(26.dp)
                     )
+                }
+
+                // Ringkasan Risiko & Tombol Cepat Kalkulator Lot
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0x55000000), RoundedCornerShape(10.dp))
+                        .border(1.dp, Color(0x33FFD700), RoundedCornerShape(10.dp))
+                        .padding(10.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "🛡️ RINGKASAN RISIKO",
+                                color = AuraGoldLight,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            Text(
+                                text = "ATR(14): ${String.format(Locale.US, "%.3f", state.atr14)}",
+                                color = AuraCyan,
+                                fontSize = 9.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(text = "Rekomendasi SL (1.5x ATR):", color = Color(0xFF94A3B8), fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+                            Text(
+                                text = "${String.format(Locale.US, "%.0f", state.atr14 * 1.5 * 1000)} PT",
+                                color = AuraGoldPrimary,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(text = "Status Margin:", color = Color(0xFF94A3B8), fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+                            Text(
+                                text = if (state.mt5MarginLevel > 0) "${state.mt5MarginLevel.toInt()}%" else "SEHAT (>1000%)",
+                                color = AuraGreenBull,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+
+                        // Tombol Cepat ke Kalkulator Lot
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0x22FFD700), RoundedCornerShape(6.dp))
+                                .border(1.dp, AuraGoldPrimary.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                                .clickable { onNavigateToLotCalculator() }
+                                .padding(vertical = 6.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(text = "🧮", fontSize = 11.sp)
+                                Text(
+                                    text = "BUKA KALKULATOR LOT CENT",
+                                    color = AuraGoldLight,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+                    }
                 }
 
                 // Exness MT5 Cent Status Card

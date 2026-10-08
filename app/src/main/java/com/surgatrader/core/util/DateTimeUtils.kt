@@ -96,4 +96,33 @@ object DateTimeUtils {
         }
         return sdf.format(Date(timestamp))
     }
+
+    /**
+     * Mengembalikan nama sesi pasar internasional yang aktif dengan konversi otomatis
+     * jam musim (DST) via ZoneId Europe/London, America/New_York, dan Asia/Tokyo.
+     */
+    fun getActiveTradingSession(now: ZonedDateTime = getCurrentWibTime()): String {
+        val londonTime = now.withZoneSameInstant(ZoneId.of("Europe/London")).toLocalTime()
+        val nyTime = now.withZoneSameInstant(ZoneId.of("America/New_York")).toLocalTime()
+        val tokyoTime = now.withZoneSameInstant(ZoneId.of("Asia/Tokyo")).toLocalTime()
+
+        val isLondonOpen = londonTime.hour in 8..16 || (londonTime.hour == 16 && londonTime.minute <= 30)
+        val isNyOpen = nyTime.hour in 8..16
+        val isTokyoOpen = tokyoTime.hour in 9..17
+
+        return when {
+            isLondonOpen && isNyOpen -> "OVERLAP LON/NY"
+            isLondonOpen -> "SESI LONDON"
+            isNyOpen -> "SESI NEW YORK"
+            isTokyoOpen -> "SESI ASIA"
+            else -> "PASIF / ROLLOVER"
+        }
+    }
+
+    fun formatCurrentWibClock(now: ZonedDateTime = getCurrentWibTime()): String {
+        val sdf = SimpleDateFormat("HH:mm:ss 'WIB'", Locale("id", "ID")).apply {
+            timeZone = TimeZone.getTimeZone("Asia/Jakarta")
+        }
+        return sdf.format(Date.from(now.toInstant()))
+    }
 }

@@ -205,56 +205,70 @@ fun AuraHeader(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // XAUUSDc Cent Price (3 Decimals)
+                // 1. XAUUSDc Bid / Ask 3 Desimal
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Text(text = "🥇 XAUUSDc", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
                     Text(
-                        text = String.format(Locale.US, "%.3f", state.goldPriceUsc),
+                        text = "🥇 XAUUSDc",
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    Text(
+                        text = "BID ${com.surgatrader.core.util.CurrencyFormatter.formatPrice(state.bidPriceUsc, 3)} / ASK ${com.surgatrader.core.util.CurrencyFormatter.formatPrice(state.askPriceUsc, 3)}",
                         color = priceColor,
-                        fontSize = 13.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.ExtraBold,
                         fontFamily = FontFamily.Monospace
                     )
                 }
 
-                // XAU/USD Reference Price
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(text = "USD:", color = Color(0xFF94A3B8), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
-                    Text(
-                        text = "$${String.format(Locale.US, "%.2f", state.goldPriceUsd)}",
-                        color = Color.White,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
-
-                // SPREAD
+                // 2. SPREAD (Points, 1 pt = 0.001)
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(text = "SPREAD:", color = Color(0xFF94A3B8), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
-                    Text(text = "${state.spreadPips} PT", color = AuraCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
-                }
-
-                // LATENCY (Measured)
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(text = "PING:", color = Color(0xFF94A3B8), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
                     Text(
-                        text = if (state.latencyMs > 0) "${state.latencyMs.toLong()} MS" else "SIMULASI",
-                        color = if (state.latencyMs in 1.0..100.0) AuraGreenBull else AuraCyan,
+                        text = "${state.spreadPoints.toInt()} PT",
+                        color = AuraCyan,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace
                     )
                 }
 
-                // EQUITY USC & USD
+                // 3. PERUBAHAN HARIAN %
+                val isChangePositive = state.dailyChangePercent >= 0
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(text = "24H:", color = Color(0xFF94A3B8), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                    Text(
+                        text = "${if (isChangePositive) "+" else ""}${String.format(Locale.US, "%.2f", state.dailyChangePercent)}%",
+                        color = if (isChangePositive) AuraGreenBull else AuraRedBear,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+
+                // 4. FLOATING P/L
+                val isPnlPositive = state.floatingProfitUsc >= 0
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(text = "P/L:", color = Color(0xFF94A3B8), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                    Text(
+                        text = "${if (isPnlPositive) "+" else ""}${String.format(Locale.US, "%.2f", state.floatingProfitUsc)} USC",
+                        color = if (isPnlPositive) AuraGreenBull else AuraRedBear,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+
+                // 5. EKUITAS USC & USD
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(text = "EKUITAS:", color = Color(0xFF94A3B8), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
                     Text(
-                        text = "${String.format(Locale.US, "%.2f", state.mt5EquityUsc)} USC (~$${String.format(Locale.US, "%.2f", state.mt5EquityUsc / 100.0)})",
+                        text = "${String.format(Locale.US, "%,.2f", state.mt5EquityUsc)} USC (~$${String.format(Locale.US, "%,.2f", state.mt5EquityUsc / 100.0)})",
                         color = Color(0xFFFFD700),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
@@ -262,10 +276,40 @@ fun AuraHeader(
                     )
                 }
 
-                // ZONA WAKTU
+                // 6. LATENCY BRIDGE TERUKUR
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(text = "ZONA:", color = Color(0xFF94A3B8), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
-                    Text(text = "WIB (UTC+7)", color = Color.White, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                    Text(text = "PING:", color = Color(0xFF94A3B8), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                    Text(
+                        text = if (state.latencyMs > 0) "${state.latencyMs.toLong()} MS" else "DEMO",
+                        color = if (state.latencyMs in 1.0..100.0) AuraGreenBull else AuraCyan,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+
+                // 7. JAM WIB REAL-TIME
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(text = "WAKTU:", color = Color(0xFF94A3B8), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                    Text(
+                        text = state.wibClock,
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+
+                // 8. SESI PASAR AKTIF
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(text = "SESI:", color = Color(0xFF94A3B8), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                    Text(
+                        text = state.activeSession,
+                        color = AuraGoldLight,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
                 }
             }
         }

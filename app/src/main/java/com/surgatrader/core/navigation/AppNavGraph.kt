@@ -26,7 +26,9 @@ fun AppNavGraph(
         modifier = Modifier.padding(paddingValues)
     ) {
         composable(Screen.CommandRoom.route) {
-            AuraQuantumScreen()
+            AuraQuantumScreen(
+                onNavigateToLotCalculator = { navController.navigate(Screen.LotCalculator.route) }
+            )
         }
 
         composable(Screen.Chart.route) {
