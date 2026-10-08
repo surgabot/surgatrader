@@ -1,8 +1,6 @@
 package com.surgatrader.core.navigation
 
-import androidx.compose.foundation.border
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -12,17 +10,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
-import com.surgatrader.core.theme.CyanAccent
-import com.surgatrader.core.theme.ObsidianSurface
-import com.surgatrader.core.theme.SlateBorder
-import com.surgatrader.core.theme.TextPrimary
-import com.surgatrader.core.theme.TextSecondary
+import com.surgatrader.core.theme.AuraGlassBg
+import com.surgatrader.core.theme.AuraGoldPrimary
+import com.surgatrader.core.theme.FontFamilyOrbitron
 
 @Composable
 fun BottomNavBar(
@@ -31,23 +28,23 @@ fun BottomNavBar(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    // Jangan tampilkan bottom bar di detail screen jika tidak termasuk tab utama
-    val isBottomBarVisible = BottomNavItems.any { it.route == currentRoute }
+    // Tampilkan jika termasuk layar navigasi utama
+    val isBottomBarVisible = Screen.bottomNavScreens.any { it.route == currentRoute }
     if (!isBottomBarVisible) return
 
     NavigationBar(
-        containerColor = ObsidianSurface,
+        containerColor = AuraGlassBg,
         modifier = Modifier.drawBehind {
-            // Garis border halus di atas navigation bar
+            // Garis border emas di atas navigation bar
             drawLine(
-                color = SlateBorder,
+                color = Color(0x44FFD700),
                 start = Offset(0f, 0f),
                 end = Offset(size.width, 0f),
                 strokeWidth = 1.dp.toPx()
             )
         }
     ) {
-        BottomNavItems.forEach { screen ->
+        Screen.bottomNavScreens.forEach { screen ->
             val isSelected = currentRoute == screen.route
             NavigationBarItem(
                 icon = {
@@ -59,10 +56,10 @@ fun BottomNavBar(
                 label = {
                     Text(
                         text = screen.title,
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = 10.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                        )
+                        fontSize = 10.sp,
+                        fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Normal,
+                        fontFamily = FontFamilyOrbitron,
+                        letterSpacing = 0.5.sp
                     )
                 },
                 selected = isSelected,
@@ -78,11 +75,11 @@ fun BottomNavBar(
                     }
                 },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = CyanAccent,
-                    selectedTextColor = CyanAccent,
-                    unselectedIconColor = TextSecondary,
-                    unselectedTextColor = TextSecondary,
-                    indicatorColor = ObsidianSurface
+                    selectedIconColor = AuraGoldPrimary,
+                    selectedTextColor = AuraGoldPrimary,
+                    indicatorColor = AuraGoldPrimary.copy(alpha = 0.15f),
+                    unselectedIconColor = Color(0xFF94A3B8),
+                    unselectedTextColor = Color(0xFF64748B)
                 )
             )
         }

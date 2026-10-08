@@ -7,8 +7,9 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.surgatrader.feature.aura.presentation.AuraQuantumScreen
 import com.surgatrader.feature.calendar.presentation.CalendarScreen
-import com.surgatrader.feature.dashboard.presentation.DashboardScreen
+import com.surgatrader.feature.connection.ConnectionScreen
 import com.surgatrader.feature.journal.presentation.JournalScreen
 import com.surgatrader.feature.riskradar.presentation.RiskRadarScreen
 import com.surgatrader.feature.riskradar.presentation.SymbolSpecScreen
@@ -21,23 +22,25 @@ fun AppNavGraph(
 ) {
     NavHost(
         navController = navController,
-        startDestination = Screen.Dashboard.route,
+        startDestination = Screen.CommandRoom.route,
         modifier = Modifier.padding(paddingValues)
     ) {
-        composable(Screen.Dashboard.route) {
-            DashboardScreen(
-                onNavigateToRiskRadar = { navController.navigate(Screen.RiskRadar.route) },
-                onNavigateToRoadmap = { navController.navigate(Screen.Roadmap.route) },
-                onNavigateToCalendar = { navController.navigate(Screen.Calendar.route) },
-                onNavigateToMt5Bridge = { navController.navigate(Screen.Mt5Bridge.route) }
-            )
+        composable(Screen.CommandRoom.route) {
+            AuraQuantumScreen()
         }
 
-        composable(Screen.Roadmap.route) {
-            RoadmapScreen()
+        composable(Screen.Chart.route) {
+            // Chart screen (Tahap 6 candlestick chart, fallback to command room)
+            AuraQuantumScreen()
         }
 
         composable(Screen.RiskRadar.route) {
+            RiskRadarScreen(
+                onNavigateToSymbolSpec = { navController.navigate(Screen.SymbolSpec.route) }
+            )
+        }
+
+        composable(Screen.LotCalculator.route) {
             RiskRadarScreen(
                 onNavigateToSymbolSpec = { navController.navigate(Screen.SymbolSpec.route) }
             )
@@ -47,18 +50,18 @@ fun AppNavGraph(
             JournalScreen()
         }
 
-        composable(Screen.Calendar.route) {
-            CalendarScreen()
+        composable(Screen.Roadmap.route) {
+            RoadmapScreen()
         }
 
-        composable(Screen.SymbolSpec.route) {
-            SymbolSpecScreen(
+        composable(Screen.Connection.route) {
+            ConnectionScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
 
-        composable(Screen.Mt5Bridge.route) {
-            com.surgatrader.feature.advanced.Mt5BridgeScreen(
+        composable(Screen.SymbolSpec.route) {
+            SymbolSpecScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
