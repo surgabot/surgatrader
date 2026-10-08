@@ -2,6 +2,7 @@ package com.surgatrader.core.di
 
 import android.content.Context
 import com.surgatrader.core.database.AppDatabase
+import com.surgatrader.feature.journal.data.TradeJournalDao
 import com.surgatrader.feature.riskradar.data.SymbolDao
 import dagger.Module
 import dagger.Provides
@@ -35,5 +36,10 @@ object DatabaseModule {
     @Provides
     fun provideSymbolDao(database: AppDatabase): SymbolDao {
         return database.symbolDao()
+    }
+
+    @Provides
+    fun provideTradeJournalDao(database: AppDatabase): TradeJournalDao {
+        return database.tradeJournalDao()
     }
 }

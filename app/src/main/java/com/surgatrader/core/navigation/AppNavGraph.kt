@@ -32,8 +32,9 @@ fun AppNavGraph(
         }
 
         composable(Screen.Chart.route) {
-            // Chart screen (Tahap 6 candlestick chart, fallback to command room)
-            AuraQuantumScreen()
+            com.surgatrader.feature.chart.presentation.AuraChartScreen(
+                onNavigateToLotCalculator = { navController.navigate(Screen.LotCalculator.route) }
+            )
         }
 
         composable(Screen.RiskRadar.route) {

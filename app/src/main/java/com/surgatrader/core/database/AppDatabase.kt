@@ -5,6 +5,8 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.surgatrader.feature.journal.data.TradeJournalDao
+import com.surgatrader.feature.journal.data.TradeJournalEntity
 import com.surgatrader.feature.riskradar.data.DefaultSymbols
 import com.surgatrader.feature.riskradar.data.SymbolDao
 import com.surgatrader.feature.riskradar.data.SymbolEntity
@@ -14,14 +16,16 @@ import kotlinx.coroutines.launch
 
 @Database(
     entities = [
-        SymbolEntity::class
+        SymbolEntity::class,
+        TradeJournalEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun symbolDao(): SymbolDao
+    abstract fun tradeJournalDao(): TradeJournalDao
 
     companion object {
         const val DATABASE_NAME = "surga_trader.db"
@@ -31,7 +35,8 @@ abstract class AppDatabase : RoomDatabase() {
                 context.applicationContext,
                 AppDatabase::class.java,
                 DATABASE_NAME
-            ).addCallback(object : Callback() {
+            ).fallbackToDestructiveMigration()
+            .addCallback(object : Callback() {
                 override fun onCreate(db: SupportSQLiteDatabase) {
                     super.onCreate(db)
                     scope.launch(Dispatchers.IO) {
