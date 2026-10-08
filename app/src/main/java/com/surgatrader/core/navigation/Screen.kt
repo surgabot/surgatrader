@@ -60,6 +60,13 @@ sealed class Screen(
         selectedIcon = Icons.Filled.Security,
         unselectedIcon = Icons.Outlined.Security
     )
+
+    object Mt5Bridge : Screen(
+        route = "mt5_bridge",
+        title = "MT5 Bridge",
+        selectedIcon = Icons.Filled.Security,
+        unselectedIcon = Icons.Outlined.Security
+    )
 }
 
 val BottomNavItems = listOf(

@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material3.Card
@@ -63,6 +64,7 @@ fun DashboardScreen(
     onNavigateToRiskRadar: () -> Unit,
     onNavigateToRoadmap: () -> Unit,
     onNavigateToCalendar: () -> Unit,
+    onNavigateToMt5Bridge: () -> Unit = {},
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -83,6 +85,15 @@ fun DashboardScreen(
                         Text(
                             text = "MetaTrader 5 Cent Pro Assistant",
                             style = MaterialTheme.typography.labelSmall.copy(color = CyanAccent)
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onNavigateToMt5Bridge) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "MT5 Bridge",
+                            tint = CyanAccent
                         )
                     }
                 },

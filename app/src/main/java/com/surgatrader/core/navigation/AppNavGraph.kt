@@ -28,7 +28,8 @@ fun AppNavGraph(
             DashboardScreen(
                 onNavigateToRiskRadar = { navController.navigate(Screen.RiskRadar.route) },
                 onNavigateToRoadmap = { navController.navigate(Screen.Roadmap.route) },
-                onNavigateToCalendar = { navController.navigate(Screen.Calendar.route) }
+                onNavigateToCalendar = { navController.navigate(Screen.Calendar.route) },
+                onNavigateToMt5Bridge = { navController.navigate(Screen.Mt5Bridge.route) }
             )
         }
 
@@ -52,6 +53,12 @@ fun AppNavGraph(
 
         composable(Screen.SymbolSpec.route) {
             SymbolSpecScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.Mt5Bridge.route) {
+            com.surgatrader.feature.advanced.Mt5BridgeScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
