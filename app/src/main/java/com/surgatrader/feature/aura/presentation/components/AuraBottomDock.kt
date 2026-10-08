@@ -32,7 +32,11 @@ import androidx.compose.ui.unit.sp
 import com.surgatrader.core.theme.AuraGlassBg
 import com.surgatrader.core.theme.AuraGoldLight
 import com.surgatrader.core.theme.AuraGoldPrimary
+import com.surgatrader.core.theme.AuraGreenBull
+import com.surgatrader.core.theme.AuraRedBear
+import com.surgatrader.feature.aura.domain.council.CouncilMemberReport
 import com.surgatrader.feature.aura.domain.model.AuraEntity
+import com.surgatrader.feature.aura.domain.model.CouncilBias
 import com.surgatrader.feature.aura.domain.model.DefaultAuraEntities
 
 @Composable
@@ -41,6 +45,7 @@ fun AuraBottomDock(
     isSpeaking: Boolean,
     onEntitySelected: (AuraEntity) -> Unit,
     onToggleTerminal: () -> Unit,
+    reports: Map<String, CouncilMemberReport> = emptyMap(),
     modifier: Modifier = Modifier
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "dockPulse")
@@ -76,6 +81,13 @@ fun AuraBottomDock(
             DefaultAuraEntities.forEach { entity ->
                 val isSelected = currentSpeaker.id == entity.id
                 val scale = if (isSelected && isSpeaking) chipScale else 1.0f
+                val entityReport = reports[entity.id]
+                val biasColor = when (entityReport?.bias) {
+                    CouncilBias.BULLISH -> AuraGreenBull
+                    CouncilBias.BEARISH -> AuraRedBear
+                    CouncilBias.NEUTRAL -> AuraGoldPrimary
+                    null -> entity.color
+                }
 
                 Box(
                     modifier = Modifier
@@ -99,7 +111,7 @@ fun AuraBottomDock(
                         Box(
                             modifier = Modifier
                                 .size(8.dp)
-                                .background(entity.color, CircleShape)
+                                .background(biasColor, CircleShape)
                         )
                         Text(
                             text = entity.name.split("-")[0],
@@ -109,6 +121,14 @@ fun AuraBottomDock(
                             fontFamily = FontFamily.Monospace,
                             letterSpacing = 1.sp
                         )
+                        if (entityReport != null) {
+                            Text(
+                                text = "${entityReport.confidenceScore}%",
+                                color = biasColor.copy(alpha = 0.8f),
+                                fontSize = 8.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
                     }
                 }
             }

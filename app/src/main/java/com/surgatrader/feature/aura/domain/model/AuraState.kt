@@ -1,6 +1,8 @@
 package com.surgatrader.feature.aura.domain.model
 
 import com.surgatrader.core.security.DataMode
+import com.surgatrader.feature.aura.domain.council.CouncilConsensusResult
+import com.surgatrader.feature.aura.domain.council.CouncilMemberReport
 
 data class AuraState(
     val currentStepIndex: Int = 0,
@@ -36,6 +38,11 @@ data class AuraState(
     val atr14: Double = 1.450,
     val rotationSpeedMultiplier: Float = 1.0f,
     val consensusBias: CouncilBias = CouncilBias.BULLISH,
+
+    // Dynamic 5 Council Reports & Master Consensus
+    val activeScript: List<AuraScriptStep> = emptyList(),
+    val latestConsensus: CouncilConsensusResult? = null,
+    val activeCouncilReports: Map<String, CouncilMemberReport> = emptyMap(),
     
     // MT5 Cent Bridge State (No hardcoded credentials)
     val isMt5Connected: Boolean = false,
@@ -57,8 +64,14 @@ data class AuraState(
     val isDemoMode: Boolean
         get() = dataMode == DataMode.DEMO
 
+    val currentScriptList: List<AuraScriptStep>
+        get() = if (activeScript.isNotEmpty()) activeScript else DefaultAuraScript
+
     val currentStep: AuraScriptStep
-        get() = DefaultAuraScript.getOrElse(currentStepIndex) { DefaultAuraScript[0] }
+        get() = currentScriptList.getOrElse(currentStepIndex) { currentScriptList[0] }
+
+    val totalStepsCount: Int
+        get() = currentScriptList.size
 
     val currentSpeaker: AuraEntity
         get() = DefaultAuraEntities.find { it.id == currentStep.speakerId } ?: DefaultAuraEntities[0]

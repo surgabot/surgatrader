@@ -176,6 +176,7 @@ fun AuraQuantumScreen(
                         isSpeaking = state.isSpeaking,
                         onEntitySelected = { viewModel.selectEntity(it) },
                         onToggleTerminal = { viewModel.toggleTerminal() },
+                        reports = state.activeCouncilReports,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }

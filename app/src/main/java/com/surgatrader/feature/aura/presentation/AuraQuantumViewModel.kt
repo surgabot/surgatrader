@@ -12,15 +12,13 @@ import com.surgatrader.core.util.DateTimeUtils
 import com.surgatrader.feature.advanced.Mt5McpBridgeClient
 import com.surgatrader.feature.aura.audio.AndroidIndonesianVoiceEngine
 import com.surgatrader.feature.aura.audio.CyberSynthPlayer
+import com.surgatrader.feature.aura.domain.council.CouncilEngine
 import com.surgatrader.feature.aura.domain.model.AuraEntity
 import com.surgatrader.feature.aura.domain.model.AuraMarketMath
 import com.surgatrader.feature.aura.domain.model.AuraScriptStep
 import com.surgatrader.feature.aura.domain.model.AuraState
 import com.surgatrader.feature.aura.domain.model.AuraTerminalLog
-import com.surgatrader.feature.aura.domain.model.CouncilBias
 import com.surgatrader.feature.aura.domain.model.DefaultAuraEntities
-import com.surgatrader.feature.aura.domain.model.DefaultAuraScript
-import com.surgatrader.feature.aura.domain.model.MarketCandle
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
@@ -111,9 +109,15 @@ class AuraQuantumViewModel @Inject constructor(
         val initialCandles = AuraMarketMath.generateRealisticM5Candles(4100.234, 16)
         val atr = AuraMarketMath.calculateAtr(initialCandles)
         val rotSpeed = AuraMarketMath.computeRotationMultiplier(atr)
-        val bias = AuraMarketMath.determineConsensusBias(initialCandles)
         val session = DateTimeUtils.getActiveTradingSession()
         val clock = DateTimeUtils.formatCurrentWibClock()
+
+        val (consensus, dynamicScript) = CouncilEngine.evaluate(
+            currentPrice = 4100.234,
+            equityUsc = 250000.00,
+            spreadPoints = 120.0,
+            candles = initialCandles
+        )
 
         _state.update {
             it.copy(
@@ -137,7 +141,10 @@ class AuraQuantumViewModel @Inject constructor(
                 m5Candles = initialCandles,
                 atr14 = atr,
                 rotationSpeedMultiplier = rotSpeed,
-                consensusBias = bias,
+                consensusBias = consensus.consensusBias,
+                activeScript = dynamicScript,
+                latestConsensus = consensus,
+                activeCouncilReports = consensus.memberReports,
                 activeSession = session,
                 wibClock = clock
             )
@@ -158,7 +165,13 @@ class AuraQuantumViewModel @Inject constructor(
                 val initialCandles = AuraMarketMath.generateRealisticM5Candles(4100.234, 16)
                 val atr = AuraMarketMath.calculateAtr(initialCandles)
                 val rotSpeed = AuraMarketMath.computeRotationMultiplier(atr)
-                val bias = AuraMarketMath.determineConsensusBias(initialCandles)
+
+                val (consensus, dynamicScript) = CouncilEngine.evaluate(
+                    currentPrice = 4100.234,
+                    equityUsc = acc.equity,
+                    spreadPoints = 120.0,
+                    candles = initialCandles
+                )
 
                 _state.update {
                     it.copy(
@@ -173,7 +186,10 @@ class AuraQuantumViewModel @Inject constructor(
                         m5Candles = initialCandles,
                         atr14 = atr,
                         rotationSpeedMultiplier = rotSpeed,
-                        consensusBias = bias,
+                        consensusBias = consensus.consensusBias,
+                        activeScript = dynamicScript,
+                        latestConsensus = consensus,
+                        activeCouncilReports = consensus.memberReports,
                         activeSession = DateTimeUtils.getActiveTradingSession(),
                         wibClock = DateTimeUtils.formatCurrentWibClock()
                     )
@@ -203,8 +219,10 @@ class AuraQuantumViewModel @Inject constructor(
     private fun startMarketSimulation() {
         marketTickJob?.cancel()
         marketTickJob = viewModelScope.launch {
+            var tickCount = 0
             while (true) {
                 delay(1200)
+                tickCount++
 
                 val delta = (Random.nextDouble() - 0.48) * 0.26
                 val newBid = (_state.value.bidPriceUsc + delta).coerceIn(3800.0, 4800.0)
@@ -227,10 +245,22 @@ class AuraQuantumViewModel @Inject constructor(
 
                 val newAtr = AuraMarketMath.calculateAtr(currentCandles)
                 val newRot = AuraMarketMath.computeRotationMultiplier(newAtr)
-                val newBias = AuraMarketMath.determineConsensusBias(currentCandles)
                 val baseOpen = currentCandles.firstOrNull()?.open ?: 4085.0
                 val changePct = ((newBid - baseOpen) / baseOpen) * 100.0
-                val simFloating = (newBid - 4098.50) * 10.0 // Simulasi floating P/L posisi terbuka
+                val simFloating = (newBid - 4098.50) * 10.0
+
+                // Jalankan evaluasi dewan berkala (setiap 5 detik atau saat inisialisasi)
+                val shouldReevaluateCouncil = tickCount % 4 == 0 || _state.value.latestConsensus == null
+                val (updatedConsensus, updatedScript) = if (shouldReevaluateCouncil) {
+                    CouncilEngine.evaluate(
+                        currentPrice = newBid,
+                        equityUsc = _state.value.mt5EquityUsc,
+                        spreadPoints = spreadPts,
+                        candles = currentCandles
+                    )
+                } else {
+                    _state.value.latestConsensus to _state.value.activeScript
+                }
 
                 _state.update {
                     it.copy(
@@ -242,9 +272,12 @@ class AuraQuantumViewModel @Inject constructor(
                         m5Candles = currentCandles,
                         atr14 = newAtr,
                         rotationSpeedMultiplier = newRot,
-                        consensusBias = newBias,
+                        consensusBias = updatedConsensus?.consensusBias ?: it.consensusBias,
                         dailyChangePercent = changePct,
                         floatingProfitUsc = simFloating,
+                        activeScript = updatedScript,
+                        latestConsensus = updatedConsensus,
+                        activeCouncilReports = updatedConsensus?.memberReports ?: it.activeCouncilReports,
                         wibClock = DateTimeUtils.formatCurrentWibClock(),
                         activeSession = DateTimeUtils.getActiveTradingSession()
                     )
@@ -261,13 +294,14 @@ class AuraQuantumViewModel @Inject constructor(
     fun playStep(index: Int) {
         autoAdvanceJob?.cancel()
 
+        val scriptList = _state.value.currentScriptList
         val validIndex = when {
-            index >= DefaultAuraScript.size -> 0
-            index < 0 -> DefaultAuraScript.size - 1
+            index >= scriptList.size -> 0
+            index < 0 -> scriptList.size - 1
             else -> index
         }
 
-        val step = DefaultAuraScript[validIndex]
+        val step = scriptList[validIndex]
         val speaker = DefaultAuraEntities.find { it.id == step.speakerId } ?: DefaultAuraEntities[0]
 
         _state.update {
@@ -323,7 +357,8 @@ class AuraQuantumViewModel @Inject constructor(
     }
 
     fun selectEntity(entity: AuraEntity) {
-        val targetIndex = DefaultAuraScript.indexOfFirst { it.speakerId == entity.id }
+        val scriptList = _state.value.currentScriptList
+        val targetIndex = scriptList.indexOfFirst { it.speakerId == entity.id }
         if (targetIndex != -1) {
             playStep(targetIndex)
         } else {
@@ -380,7 +415,13 @@ class AuraQuantumViewModel @Inject constructor(
         viewModelScope.launch {
             synth.playTransmissionChime("execution", _state.value.volume)
             val orderTime = currentTimestamp()
-            val orderMsg = "[$orderTime] SINYAL DISIMULASIKAN: Analisis 0.01 Lot XAUUSDc @ ${String.format(Locale.US, "%.3f", _state.value.goldPriceUsc)} USC. Mode eksekusi langsung dinonaktifkan demi kepatuhan risiko."
+            val consensus = _state.value.latestConsensus
+
+            val orderMsg = if (consensus != null && consensus.isConsensusAgreed) {
+                "[$orderTime] EKSEKUSI KUANTUM: ${consensus.verdictTitle} @ ${String.format(Locale.US, "%.3f", _state.value.goldPriceUsc)} USC. SL: ${String.format(Locale.US, "%.3f", consensus.stopLossPrice)} USC, TP1: ${String.format(Locale.US, "%.3f", consensus.takeProfit1Price)} USC. Ukuran: ${consensus.recommendedLotCent} Lot Cent Exness."
+            } else {
+                "[$orderTime] SINYAL DITOLAK: ${consensus?.verdictTitle ?: "Dewan Belum Mencapai Konsensus Bulat"}. Seluruh order ditahan demi kepatuhan risiko modal."
+            }
             
             addTerminalLog(
                 speaker = "AEGIS-EXECUTION",

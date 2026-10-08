@@ -104,7 +104,7 @@ fun AuraLeftPanel(
                             letterSpacing = 1.sp
                         )
                         Text(
-                            text = "${state.currentStepIndex + 1} / ${DefaultAuraScript.size}",
+                            text = "${state.currentStepIndex + 1} / ${state.totalStepsCount}",
                             color = Color(0xFF94A3B8),
                             fontSize = 10.sp,
                             fontFamily = FontFamily.Monospace
@@ -165,19 +165,41 @@ fun AuraLeftPanel(
                     maxLines = 1
                 )
 
-                Box(
-                    modifier = Modifier
-                        .background(Color(0x1A00F2FE), RoundedCornerShape(6.dp))
-                        .border(1.dp, AuraCyan.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                val memberReport = state.activeCouncilReports[state.currentSpeaker.id]
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = state.currentStep.stage,
-                        color = AuraCyan,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace
-                    )
+                    Box(
+                        modifier = Modifier
+                            .background(Color(0x1A00F2FE), RoundedCornerShape(6.dp))
+                            .border(1.dp, AuraCyan.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = state.currentStep.stage,
+                            color = AuraCyan,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+
+                    if (memberReport != null) {
+                        val biasColor = when (memberReport.bias) {
+                            com.surgatrader.feature.aura.domain.model.CouncilBias.BULLISH -> com.surgatrader.core.theme.AuraGreenBull
+                            com.surgatrader.feature.aura.domain.model.CouncilBias.BEARISH -> com.surgatrader.core.theme.AuraRedBear
+                            com.surgatrader.feature.aura.domain.model.CouncilBias.NEUTRAL -> AuraGoldPrimary
+                        }
+                        Text(
+                            text = "BIAS: ${memberReport.bias.label} (${memberReport.confidenceScore}%)",
+                            color = biasColor,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
                 }
 
                 // Dialogue Content Box
