@@ -3,6 +3,8 @@ package com.surgatrader.feature.aura.presentation
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.surgatrader.core.security.DataMode
+import com.surgatrader.core.security.SecurePreferencesManager
 import com.surgatrader.core.theme.AuraCyan
 import com.surgatrader.core.theme.AuraGoldPrimary
 import com.surgatrader.core.theme.AuraGreenBull
@@ -32,10 +34,11 @@ import kotlin.random.Random
 @HiltViewModel
 class AuraQuantumViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val mt5Client: Mt5McpBridgeClient
+    private val mt5Client: Mt5McpBridgeClient,
+    private val securePrefs: SecurePreferencesManager
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(AuraState())
+    private val _state = MutableStateFlow(AuraState(dataMode = securePrefs.getDataMode()))
     val state: StateFlow<AuraState> = _state.asStateFlow()
 
     private val synth = CyberSynthPlayer()
@@ -45,9 +48,8 @@ class AuraQuantumViewModel @Inject constructor(
 
     init {
         initVoiceEngine()
-        startMarketSimulation()
         initTerminalWelcomeLogs()
-        syncWithMt5Bridge()
+        refreshConnectionAndMode()
     }
 
     private fun initVoiceEngine() {
@@ -74,56 +76,88 @@ class AuraQuantumViewModel @Inject constructor(
                 timestamp = currentTimestamp(),
                 speakerName = "QUANTUM-KERNEL",
                 speakerColor = AuraCyan,
-                message = "Inisialisasi sistem sub-milidetik Aura Quantum Gold v2.4 aktif."
+                message = "Inisialisasi sistem sub-milidetik Aura Quantum Gold v2.0 aktif."
             ),
             AuraTerminalLog(
                 timestamp = currentTimestamp(),
-                speakerName = "AEGIS-EXECUTION",
+                speakerName = "SECURITY-GUARD",
                 speakerColor = AuraGoldPrimary,
-                message = "Handshake direct bridge MetaTrader 5 Exness Real Cent (263608312) terverifikasi."
-            ),
-            AuraTerminalLog(
-                timestamp = currentTimestamp(),
-                speakerName = "ALPHA-ORACLE",
-                speakerColor = AuraGoldPrimary,
-                message = "Likuiditas global makro tersinkronisasi. Siap transmisi orkestrasi 6 fase."
+                message = "Modul keamanan Android Keystore aktif. Kredensial tersimpan lokal terenkripsi."
             )
         )
         _state.update { it.copy(terminalLogs = initialLogs) }
     }
 
-    private fun syncWithMt5Bridge() {
-        viewModelScope.launch {
-            // Attempt to connect to local MT5 Bridge (emulator host 10.0.2.2 or localhost 127.0.0.1)
-            val token = "41N+oWQuYq5Q/s69xmv282vALkGOMpWBf0+Ce/1sBD"
-            val urls = listOf("http://10.0.2.2:22346/mcp", "http://127.0.0.1:22346/mcp", "http://192.168.1.5:22346/mcp")
+    fun refreshConnectionAndMode() {
+        val currentMode = securePrefs.getDataMode()
+        val url = securePrefs.getBridgeUrl()
+        val token = securePrefs.getBridgeToken()
 
-            for (url in urls) {
-                val initResult = mt5Client.initializeSession(url, token)
-                if (initResult.isSuccess) {
-                    val accountResult = mt5Client.getTradingAccountInfo(url, token)
-                    if (accountResult.isSuccess) {
-                        val acc = accountResult.getOrNull()
-                        if (acc != null) {
-                            _state.update {
-                                it.copy(
-                                    isMt5Connected = true,
-                                    mt5BalanceUsc = acc.balance,
-                                    mt5EquityUsc = acc.equity,
-                                    mt5FreeMarginUsc = acc.marginFree,
-                                    mt5Server = acc.server,
-                                    mt5AccountType = acc.type
-                                )
-                            }
-                            addTerminalLog(
-                                speaker = "MT5-BRIDGE",
-                                color = AuraGreenBull,
-                                message = "Data akun live terambil: Saldo ${acc.balance} USC (${acc.server})"
-                            )
-                            break
-                        }
-                    }
+        _state.update { it.copy(dataMode = currentMode) }
+
+        if (currentMode == DataMode.LIVE && url.isNotBlank()) {
+            syncWithLiveBridge(url, token)
+        } else {
+            initDemoMode()
+        }
+    }
+
+    private fun initDemoMode() {
+        _state.update {
+            it.copy(
+                dataMode = DataMode.DEMO,
+                isMt5Connected = false,
+                mt5Server = "SIMULASI DEMO",
+                mt5AccountType = "Standar Cent (Simulasi)",
+                mt5BalanceUsc = 2500.00,
+                mt5EquityUsc = 2500.00,
+                mt5FreeMarginUsc = 2500.00,
+                latencyMs = 0.0
+            )
+        }
+        addTerminalLog(
+            speaker = "MODE-DISPATCHER",
+            color = AuraCyan,
+            message = "Aplikasi berjalan dalam MODE DEMO • BUKAN DATA ASLI. Konfigurasikan koneksi untuk data Live."
+        )
+        startMarketSimulation()
+    }
+
+    private fun syncWithLiveBridge(url: String, token: String) {
+        viewModelScope.launch {
+            val testResult = mt5Client.testConnection(url, token)
+            if (testResult.isConnected && testResult.accountData != null) {
+                val acc = testResult.accountData
+                _state.update {
+                    it.copy(
+                        isMt5Connected = true,
+                        dataMode = DataMode.LIVE,
+                        mt5BalanceUsc = acc.balance,
+                        mt5EquityUsc = acc.equity,
+                        mt5FreeMarginUsc = acc.marginFree,
+                        mt5Server = acc.server,
+                        mt5AccountType = acc.type,
+                        latencyMs = testResult.latencyMs.toDouble()
+                    )
                 }
+                addTerminalLog(
+                    speaker = "MT5-BRIDGE",
+                    color = AuraGreenBull,
+                    message = "Koneksi Live terverifikasi ke ${acc.broker} (${acc.server}). Latency nyata: ${testResult.latencyMs} ms."
+                )
+            } else {
+                _state.update {
+                    it.copy(
+                        isMt5Connected = false,
+                        latencyMs = testResult.latencyMs.toDouble()
+                    )
+                }
+                addTerminalLog(
+                    speaker = "MT5-BRIDGE",
+                    color = AuraCyan,
+                    message = "Gagal terhubung ke Bridge MT5. Kembali ke data simulasi offline."
+                )
+                startMarketSimulation()
             }
         }
     }
@@ -132,18 +166,16 @@ class AuraQuantumViewModel @Inject constructor(
         marketTickJob?.cancel()
         marketTickJob = viewModelScope.launch {
             while (true) {
-                delay(1800)
+                delay(2000)
                 val delta = (Random.nextDouble() - 0.48) * 0.35
                 val newPrice = _state.value.goldPriceUsd + delta
                 val newCentPrice = _state.value.goldPriceUsc + (delta * 1.54)
-                val newLatency = 0.032 + Random.nextDouble() * 0.012
 
                 _state.update {
                     it.copy(
                         goldPriceUsd = newPrice,
                         goldPriceUsc = newCentPrice,
-                        isTickPositive = delta >= 0,
-                        latencyMs = newLatency
+                        isTickPositive = delta >= 0
                     )
                 }
             }
@@ -277,7 +309,7 @@ class AuraQuantumViewModel @Inject constructor(
         viewModelScope.launch {
             synth.playTransmissionChime("execution", _state.value.volume)
             val orderTime = currentTimestamp()
-            val orderMsg = "[$orderTime] EKSEKUSI KUANTUM: Buy 0.01 Lot XAUUSDc @ ${String.format(Locale.US, "%.3f", _state.value.goldPriceUsc)} USC. Routing direct ke Exness-MT5Real37."
+            val orderMsg = "[$orderTime] SINYAL DISIMULASIKAN: Analisis 0.01 Lot XAUUSDc @ ${String.format(Locale.US, "%.3f", _state.value.goldPriceUsc)} USC. Mode eksekusi langsung dinonaktifkan demi kepatuhan risiko."
             
             addTerminalLog(
                 speaker = "AEGIS-EXECUTION",

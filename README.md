@@ -37,11 +37,10 @@ Terinspirasi dari sistem intelijen kuantum **[AURA QUANTUM](https://surga.gitlab
 - **Kotak Merek Aura Quantum**: Tipografi Orbitron dengan efek *pulsing dot* emas.
 - **Live Market Ticker Bar**:
   - 🥇 Harga XAU/USD (animasi tick naik/turun real-time dalam USD dan USC)
-  - Spread: `0.1 PIP`
-  - Latency: `0.038 MS`
-  - Daily Alpha: `+$4,820,350`
-  - Sharpe Ratio: `5.42`
-- **Badge Koneksi Akun Real Exness Cent**: Menampilkan saldo live `2,604.60 USC` (~$26.05 USD) dari server `Exness-MT5Real37`.
+  - Spread dalam point
+  - Latency round-trip nyata terukur (MS)
+  - Floating P/L & Ekuitas riil akun
+- **Badge Status & Mode Data**: Menampilkan badge mencolok `MODE DEMO • BUKAN DATA ASLI` saat dalam simulasi, atau status server bridge saat dalam mode LIVE.
 
 ---
 
@@ -94,7 +93,7 @@ Terinspirasi dari sistem intelijen kuantum **[AURA QUANTUM](https://surga.gitlab
 ### 7. 🔌 Sinkronisasi MetaTrader 5 MCP Bridge
 - Terintegrasi dengan bridge lokal MetaTrader 5 via protokol Model Context Protocol (MCP) JSON-RPC 2.0.
 - Mendukung alamat emulator (`http://10.0.2.2:22346/mcp`), perangkat fisik di jaringan lokal LAN (`http://192.168.1.x:22346/mcp`), dan localhost.
-- Mengambil saldo live, ekuitas, margin bebas, dan detail akun `Exness-MT5Real37` secara otomatis.
+- Mengambil saldo live, ekuitas, margin bebas, dan detail akun broker pengguna secara otomatis via handshake terotentikasi.
 
 ---
 

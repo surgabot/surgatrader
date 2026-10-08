@@ -8,7 +8,6 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -26,15 +25,36 @@ data class Mt5AccountData(
     val currency: String
 )
 
+data class ConnectionTestResult(
+    val isConnected: Boolean,
+    val latencyMs: Long,
+    val accountData: Mt5AccountData?,
+    val sessionId: String?,
+    val errorMessage: String? = null
+)
+
+data class LiveTickData(
+    val symbol: String,
+    val bid: Double,
+    val ask: Double,
+    val spreadPoints: Double,
+    val time: Long
+)
+
+data class CandleData(
+    val time: Long,
+    val open: Double,
+    val high: Double,
+    val low: Double,
+    val close: Double,
+    val volume: Long
+)
+
 @Singleton
 class Mt5McpBridgeClient @Inject constructor(
+    private val client: OkHttpClient,
     private val gson: Gson
 ) {
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(5, TimeUnit.SECONDS)
-        .readTimeout(10, TimeUnit.SECONDS)
-        .build()
-
     private var currentSessionId: String? = null
 
     /**
@@ -42,6 +62,10 @@ class Mt5McpBridgeClient @Inject constructor(
      */
     suspend fun initializeSession(baseUrl: String, token: String): Result<String> = withContext(Dispatchers.IO) {
         try {
+            if (baseUrl.isBlank()) {
+                return@withContext Result.failure(IllegalArgumentException("URL bridge tidak boleh kosong"))
+            }
+
             val initJson = """
                 {
                     "jsonrpc": "2.0",
@@ -50,8 +74,8 @@ class Mt5McpBridgeClient @Inject constructor(
                         "protocolVersion": "2025-06-18",
                         "capabilities": {},
                         "clientInfo": {
-                            "name": "SurgaTrader",
-                            "version": "1.0"
+                            "name": "AuraQuantum",
+                            "version": "2.0"
                         }
                     },
                     "id": 1
@@ -100,11 +124,59 @@ class Mt5McpBridgeClient @Inject constructor(
     }
 
     /**
+     * Menguji konektivitas ke MCP Bridge dan mengukur latency round-trip nyata (ms)
+     */
+    suspend fun testConnection(baseUrl: String, token: String): ConnectionTestResult = withContext(Dispatchers.IO) {
+        val startNanos = System.nanoTime()
+        try {
+            val initRes = initializeSession(baseUrl, token)
+            if (initRes.isFailure) {
+                val latency = ((System.nanoTime() - startNanos) / 1_000_000L).coerceAtLeast(1L)
+                return@withContext ConnectionTestResult(
+                    isConnected = false,
+                    latencyMs = latency,
+                    accountData = null,
+                    sessionId = null,
+                    errorMessage = initRes.exceptionOrNull()?.message ?: "Gagal inisialisasi sesi"
+                )
+            }
+
+            val accountRes = getTradingAccountInfo(baseUrl, token)
+            val latency = ((System.nanoTime() - startNanos) / 1_000_000L).coerceAtLeast(1L)
+
+            if (accountRes.isSuccess) {
+                ConnectionTestResult(
+                    isConnected = true,
+                    latencyMs = latency,
+                    accountData = accountRes.getOrNull(),
+                    sessionId = currentSessionId
+                )
+            } else {
+                ConnectionTestResult(
+                    isConnected = false,
+                    latencyMs = latency,
+                    accountData = null,
+                    sessionId = currentSessionId,
+                    errorMessage = accountRes.exceptionOrNull()?.message
+                )
+            }
+        } catch (e: Exception) {
+            val latency = ((System.nanoTime() - startNanos) / 1_000_000L).coerceAtLeast(1L)
+            ConnectionTestResult(
+                isConnected = false,
+                latencyMs = latency,
+                accountData = null,
+                sessionId = null,
+                errorMessage = e.message ?: "Koneksi terputus"
+            )
+        }
+    }
+
+    /**
      * Memanggil tool get_trading_account_info untuk mengambil Saldo, Equity, Broker & Margin
      */
     suspend fun getTradingAccountInfo(baseUrl: String, token: String): Result<Mt5AccountData> = withContext(Dispatchers.IO) {
         try {
-            // Pastikan sesi sudah dibuat
             if (currentSessionId == null) {
                 val initRes = initializeSession(baseUrl, token)
                 if (initRes.isFailure) {
@@ -137,7 +209,6 @@ class Mt5McpBridgeClient @Inject constructor(
                 return@withContext Result.failure(Exception("Gagal mengambil data akun: ${response.code}"))
             }
 
-            // Parse response
             val rootObj = gson.fromJson(bodyString, JsonObject::class.java)
             val resultObj = rootObj.getAsJsonObject("result")
             val contentArr = resultObj?.getAsJsonArray("content")

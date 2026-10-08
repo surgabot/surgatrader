@@ -8,6 +8,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -47,6 +48,7 @@ import java.util.Locale
 @Composable
 fun AuraHeader(
     state: AuraState,
+    onOpenConnectionSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
@@ -108,34 +110,76 @@ fun AuraHeader(
                 }
             }
 
-            // Exness Cent Real Connection Badge
-            Box(
-                modifier = Modifier
-                    .background(
-                        Brush.horizontalGradient(
-                            listOf(Color(0x2200FF88), Color(0x2200F2FE))
-                        ),
-                        RoundedCornerShape(20.dp)
-                    )
-                    .border(1.dp, AuraGreenBull.copy(alpha = 0.5f), RoundedCornerShape(20.dp))
-                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            // Mode & Connection Badge (Clickable to open Connection screen)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
+                if (state.isDemoMode) {
                     Box(
                         modifier = Modifier
-                            .size(7.dp)
-                            .background(AuraGreenBull, CircleShape)
-                    )
-                    Text(
-                        text = "EXNESS CENT: ${String.format(Locale.US, "%.2f", state.mt5BalanceUsc)} USC",
-                        color = AuraGreenBull,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace
-                    )
+                            .background(Color(0x33FFB92D), RoundedCornerShape(20.dp))
+                            .border(1.dp, Color(0xFFFFB92D), RoundedCornerShape(20.dp))
+                            .clickable { onOpenConnectionSettings() }
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(text = "⚠️", fontSize = 10.sp)
+                            Text(
+                                text = "MODE DEMO • BUKAN DATA ASLI",
+                                color = Color(0xFFFFD15C),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(Color(0x2200FF88), Color(0x2200F2FE))
+                                ),
+                                RoundedCornerShape(20.dp)
+                            )
+                            .border(1.dp, AuraGreenBull.copy(alpha = 0.5f), RoundedCornerShape(20.dp))
+                            .clickable { onOpenConnectionSettings() }
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(7.dp)
+                                    .background(AuraGreenBull, CircleShape)
+                            )
+                            Text(
+                                text = "LIVE • ${state.mt5Server}",
+                                color = AuraGreenBull,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+                }
+
+                // Settings gear
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .background(AuraGlassBg, CircleShape)
+                        .border(1.dp, AuraGlassBorder, CircleShape)
+                        .clickable { onOpenConnectionSettings() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = "⚙️", fontSize = 13.sp)
                 }
             }
         }
@@ -161,14 +205,14 @@ fun AuraHeader(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Live Price
+                // XAUUSDc Cent Price (3 Decimals)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Text(text = "🥇 XAU/USD", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                    Text(text = "🥇 XAUUSDc", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
                     Text(
-                        text = "$${String.format(Locale.US, "%.2f", state.goldPriceUsd)}",
+                        text = String.format(Locale.US, "%.3f", state.goldPriceUsc),
                         color = priceColor,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.ExtraBold,
@@ -176,28 +220,52 @@ fun AuraHeader(
                     )
                 }
 
+                // XAU/USD Reference Price
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(text = "USD:", color = Color(0xFF94A3B8), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                    Text(
+                        text = "$${String.format(Locale.US, "%.2f", state.goldPriceUsd)}",
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+
                 // SPREAD
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(text = "SPREAD:", color = Color(0xFF94A3B8), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
-                    Text(text = "${state.spreadPips} PIP", color = AuraCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                    Text(text = "${state.spreadPips} PT", color = AuraCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
                 }
 
-                // LATENCY
+                // LATENCY (Measured)
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(text = "LATENCY:", color = Color(0xFF94A3B8), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
-                    Text(text = "${String.format(Locale.US, "%.3f", state.latencyMs)} MS", color = AuraCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                    Text(text = "PING:", color = Color(0xFF94A3B8), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                    Text(
+                        text = if (state.latencyMs > 0) "${state.latencyMs.toLong()} MS" else "SIMULASI",
+                        color = if (state.latencyMs in 1.0..100.0) AuraGreenBull else AuraCyan,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
                 }
 
-                // DAILY ALPHA
+                // EQUITY USC & USD
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(text = "DAILY ALPHA:", color = Color(0xFF94A3B8), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
-                    Text(text = "+$4,820,350", color = AuraGreenBull, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                    Text(text = "EKUITAS:", color = Color(0xFF94A3B8), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                    Text(
+                        text = "${String.format(Locale.US, "%.2f", state.mt5EquityUsc)} USC (~$${String.format(Locale.US, "%.2f", state.mt5EquityUsc / 100.0)})",
+                        color = Color(0xFFFFD700),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
                 }
 
-                // SHARPE
+                // ZONA WAKTU
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(text = "SHARPE:", color = Color(0xFF94A3B8), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
-                    Text(text = "${state.sharpeRatio}", color = AuraCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                    Text(text = "ZONA:", color = Color(0xFF94A3B8), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                    Text(text = "WIB (UTC+7)", color = Color.White, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
                 }
             }
         }

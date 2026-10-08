@@ -45,6 +45,7 @@ fun AuraRightPanel(
     onSpeedSelected: (Float) -> Unit,
     onVolumeChanged: (Float) -> Unit,
     onExecuteQuantumOrder: () -> Unit,
+    onOpenConnectionSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     if (state.isRightPanelCollapsed) {
@@ -280,12 +281,16 @@ fun AuraRightPanel(
                     )
                 }
 
-                // Exness MT5 Cent Quick Execution Card
+                // Exness MT5 Cent Status Card
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(Color(0x77000000), RoundedCornerShape(10.dp))
-                        .border(1.dp, AuraGreenBull.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+                        .border(
+                            1.dp,
+                            if (state.isDemoMode) Color(0x44FFB92D) else AuraGreenBull.copy(alpha = 0.4f),
+                            RoundedCornerShape(10.dp)
+                        )
                         .padding(10.dp)
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -293,8 +298,19 @@ fun AuraRightPanel(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(text = "EXNESS STANDAR CENT", color = AuraGreenBull, fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
-                            Text(text = "REAL-37", color = Color(0xFF94A3B8), fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+                            Text(
+                                text = if (state.isDemoMode) "SIMULASI DEMO" else "AKUN CENT LIVE",
+                                color = if (state.isDemoMode) Color(0xFFFFD15C) else AuraGreenBull,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            Text(
+                                text = state.mt5Server,
+                                color = Color(0xFF94A3B8),
+                                fontSize = 9.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
                         }
 
                         Row(
@@ -311,7 +327,7 @@ fun AuraRightPanel(
                             )
                         }
 
-                        // Instant Quantum Order Execution Button
+                        // Order Simulation / Analysis Action Button
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -324,10 +340,26 @@ fun AuraRightPanel(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "⚡ EKSEKUSI SINYAL QUANTUM (0.01 LOT)",
+                                text = "⚡ SIMULASI SINYAL (0.01 LOT)",
                                 color = Color(0xFF02050E),
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.ExtraBold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+
+                        // Connection settings shortcut
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onOpenConnectionSettings() }
+                                .padding(vertical = 4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "⚙️ Konfigurasi Koneksi Bridge",
+                                color = AuraCyan,
+                                fontSize = 9.sp,
                                 fontFamily = FontFamily.Monospace
                             )
                         }

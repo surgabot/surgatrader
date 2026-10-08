@@ -1,5 +1,7 @@
 package com.surgatrader.feature.aura.domain.model
 
+import com.surgatrader.core.security.DataMode
+
 data class AuraState(
     val currentStepIndex: Int = 0,
     val isAutoPlay: Boolean = true,
@@ -11,24 +13,25 @@ data class AuraState(
     val isRightPanelCollapsed: Boolean = false,
     val isTerminalOpen: Boolean = false,
     val isStartModalVisible: Boolean = true,
+    val dataMode: DataMode = DataMode.DEMO,
     
-    // Live Ticker Data (USC / USD)
+    // Live / Demo Ticker Data (USC / USD)
     val goldPriceUsd: Double = 2658.45,
     val goldPriceUsc: Double = 4100.234,
     val isTickPositive: Boolean = true,
     val spreadPips: Double = 0.1,
-    val latencyMs: Double = 0.038,
-    val dailyAlphaUsd: Double = 4820350.0,
-    val sharpeRatio: Double = 5.42,
+    val latencyMs: Double = 0.0,
+    val dailyAlphaUsd: Double = 0.0,
+    val sharpeRatio: Double = 0.0,
     
-    // MT5 Exness Cent Bridge State
-    val isMt5Connected: Boolean = true,
-    val mt5AccountLogin: Long = 263608312L,
-    val mt5Server: String = "Exness-MT5Real37",
-    val mt5AccountType: String = "Standar Cent",
-    val mt5BalanceUsc: Double = 2604.60,
-    val mt5EquityUsc: Double = 2604.60,
-    val mt5FreeMarginUsc: Double = 2604.60,
+    // MT5 Cent Bridge State (No hardcoded credentials)
+    val isMt5Connected: Boolean = false,
+    val mt5AccountLogin: Long = 0L,
+    val mt5Server: String = "Offline",
+    val mt5AccountType: String = "Demo / Standar Cent",
+    val mt5BalanceUsc: Double = 0.0,
+    val mt5EquityUsc: Double = 0.0,
+    val mt5FreeMarginUsc: Double = 0.0,
     val lastOrderExecutionMessage: String? = null,
     
     // Audio waveform simulation values
@@ -37,6 +40,9 @@ data class AuraState(
     // Logs
     val terminalLogs: List<AuraTerminalLog> = emptyList()
 ) {
+    val isDemoMode: Boolean
+        get() = dataMode == DataMode.DEMO
+
     val currentStep: AuraScriptStep
         get() = DefaultAuraScript.getOrElse(currentStepIndex) { DefaultAuraScript[0] }
 

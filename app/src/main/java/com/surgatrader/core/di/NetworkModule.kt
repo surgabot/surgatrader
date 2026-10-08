@@ -1,11 +1,12 @@
 package com.surgatrader.core.di
 
+import com.google.gson.Gson
+import com.surgatrader.core.security.SecurityNetworkInterceptor
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
@@ -18,11 +19,8 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideOkHttpClient(): OkHttpClient {
-        val logging = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
-        }
         return OkHttpClient.Builder()
-            .addInterceptor(logging)
+            .addInterceptor(SecurityNetworkInterceptor.createLoggingInterceptor())
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(15, TimeUnit.SECONDS)
             .build()
@@ -30,15 +28,15 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideGson(): com.google.gson.Gson {
-        return com.google.gson.Gson()
+    fun provideGson(): Gson {
+        return Gson()
     }
 
     @Provides
     @Singleton
-    fun provideRetrofit(okHttpClient: OkHttpClient, gson: com.google.gson.Gson): Retrofit {
+    fun provideRetrofit(okHttpClient: OkHttpClient, gson: Gson): Retrofit {
         return Retrofit.Builder()
-            .baseUrl("https://api.surgatrader.local/") // Mock / configurable base URL
+            .baseUrl("https://127.0.0.1:22346/") // Configurable local base URL
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
