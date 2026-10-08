@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Surga Trader</string>
+    <string name="nav_dashboard">Dashboard</string>
+    <string name="nav_roadmap">Roadmap</string>
+    <string name="nav_risk_radar">Radar Risiko</string>
+    <string name="nav_journal">Jurnal</string>
+    <string name="nav_calendar">Kalender</string>
+</resources>

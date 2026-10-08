@@ -1,0 +1,99 @@
+package com.surgatrader.core.util
+
+import java.text.SimpleDateFormat
+import java.time.LocalTime
+import java.time.ZoneId
+import java.time.ZonedDateTime
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
+
+data class DangerousPeriod(
+    val title: String,
+    val description: String,
+    val startHourWib: Int,
+    val startMinuteWib: Int,
+    val endHourWib: Int,
+    val endMinuteWib: Int,
+    val level: DangerLevel
+)
+
+enum class DangerLevel {
+    MODERATE,
+    HIGH,
+    EXTREME
+}
+
+object DateTimeUtils {
+
+    val ZONE_WIB: ZoneId = ZoneId.of("Asia/Jakarta")
+
+    val DANGEROUS_GOLD_HOURS = listOf(
+        DangerousPeriod(
+            title = "Pembukaan Sesi London",
+            description = "Lonjakan likuiditas Eropa & fakeout pergerakan awal",
+            startHourWib = 14,
+            startMinuteWib = 0,
+            endHourWib = 16,
+            endMinuteWib = 0,
+            level = DangerLevel.HIGH
+        ),
+        DangerousPeriod(
+            title = "Rilis Data AS & Open New York",
+            description = "NFP / CPI / PPI / Retail Sales + lonjakan volume Wall Street",
+            startHourWib = 19,
+            startMinuteWib = 15,
+            endHourWib = 21,
+            endMinuteWib = 30,
+            level = DangerLevel.EXTREME
+        ),
+        DangerousPeriod(
+            title = "FOMC / Rilis Kebijakan The Fed",
+            description = "Pernyataan suku bunga FOMC & pidato Jerome Powell (Rabu/Kamis malam)",
+            startHourWib = 1,
+            startMinuteWib = 0,
+            endHourWib = 2,
+            endMinuteWib = 30,
+            level = DangerLevel.EXTREME
+        ),
+        DangerousPeriod(
+            title = "Rollover / Daily Settlement Exness",
+            description = "Likuiditas perbankan tipis, spread emas melebar tajam!",
+            startHourWib = 4,
+            startMinuteWib = 50,
+            endHourWib = 5,
+            endMinuteWib = 30,
+            level = DangerLevel.HIGH
+        )
+    )
+
+    fun getCurrentWibTime(): ZonedDateTime {
+        return ZonedDateTime.now(ZONE_WIB)
+    }
+
+    /**
+     * Memeriksa apakah saat ini berada dalam periode jam rawan trading emas
+     */
+    fun getActiveDangerousPeriod(now: ZonedDateTime = getCurrentWibTime()): DangerousPeriod? {
+        val currentMinutes = now.hour * 60 + now.minute
+        return DANGEROUS_GOLD_HOURS.firstOrNull { period ->
+            val startMinutes = period.startHourWib * 60 + period.startMinuteWib
+            val endMinutes = period.endHourWib * 60 + period.endMinuteWib
+            currentMinutes in startMinutes..endMinutes
+        }
+    }
+
+    fun formatWibDate(timestamp: Long): String {
+        val sdf = SimpleDateFormat("dd MMM yyyy, HH:mm 'WIB'", Locale("id", "ID")).apply {
+            timeZone = TimeZone.getTimeZone("Asia/Jakarta")
+        }
+        return sdf.format(Date(timestamp))
+    }
+
+    fun formatWibTime(timestamp: Long): String {
+        val sdf = SimpleDateFormat("HH:mm 'WIB'", Locale("id", "ID")).apply {
+            timeZone = TimeZone.getTimeZone("Asia/Jakarta")
+        }
+        return sdf.format(Date(timestamp))
+    }
+}

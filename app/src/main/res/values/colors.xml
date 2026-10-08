@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="obsidian_bg">#FF12141A</color>
+    <color name="slate_card">#FF1A1E27</color>
+    <color name="border_color">#FF2D3441</color>
+    <color name="safe_emerald">#FF00E682</color>
+    <color name="warn_amber">#FFFFB92D</color>
+    <color name="danger_ruby">#FFFF4155</color>
+    <color name="cyan_accent">#FF3CA5FF</color>
+</resources>
